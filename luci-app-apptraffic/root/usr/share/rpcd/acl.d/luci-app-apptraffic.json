@@ -1,0 +1,11 @@
+{
+    "luci-app-apptraffic": {
+        "description": "Grant UCI access for luci-app-apptraffic",
+        "read": {
+            "uci": [ "apptraffic" ]
+        },
+        "write": {
+            "uci": [ "apptraffic" ]
+        }
+    }
+}

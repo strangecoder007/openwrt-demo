@@ -1,0 +1,221 @@
+<%#
+ App Traffic Analyzer - Display View
+ Copyright (C) 2024
+ Licensed under the Apache License 2.0
+-%>
+
+<%+header%>
+
+<link rel="stylesheet" href="<%=resource%>/view/apptraffic.css" />
+<script type="text/javascript" src="<%=resource%>/view/apptraffic.js"></script>
+
+<h2 name="content"><%:Application Traffic Analyzer%></h2>
+
+<p class="apptraffic-desc">
+    <%:Identify which applications and websites are being accessed on your network.%>
+    <%:Data is collected from DNS queries, TLS SNI headers, and HTTP Host headers.%>
+</p>
+
+<!-- Time Period Selector -->
+<div class="apptraffic-controls">
+    <label><%:Period:%></label>
+    <select id="period-select">
+        <option value="today"><%:Today%></option>
+        <option value="yesterday"><%:Yesterday%></option>
+        <option value="week"><%:Last 7 Days%></option>
+        <option value="month"><%:Last 30 Days%></option>
+    </select>
+    <button id="refresh-btn" class="cbi-button cbi-button-apply"><%:Refresh%></button>
+    <span id="last-update" class="apptraffic-update-time"></span>
+</div>
+
+<hr />
+
+<!-- Tabbed interface -->
+<div class="cbi-tabmenu" id="apptraffic-tabs">
+    <span class="cbi-tab" data-tab="apps"><%:Applications%></span>
+    <span class="cbi-tab" data-tab="domains"><%:Domains%></span>
+    <span class="cbi-tab" data-tab="hosts"><%:Devices%></span>
+    <span class="cbi-tab" data-tab="categories"><%:Categories%></span>
+    <span class="cbi-tab" data-tab="device-apps"><%:Device Apps%></span>
+</div>
+
+<!-- Applications Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-apps">
+    <div class="head">
+        <div class="pie">
+            <label><%:Traffic by Application%></label>
+            <canvas id="apps-pie" width="220" height="220"></canvas>
+        </div>
+        <div class="kpi">
+            <ul>
+                <li><%:Top App%>: <strong id="top-app-name">-</strong></li>
+                <li><%_<big id="apps-total-rx">0</big> total download%></li>
+                <li><%_<big id="apps-total-tx">0</big> total upload%></li>
+                <li><%_<big id="apps-count">0</big> different apps%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="apps-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Application%></div>
+            <div class="th right"><%:Connections%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+            <div class="th right"><%:Share%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading traffic data...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Domains Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-domains" style="display:none">
+    <div class="head">
+        <div class="pie">
+            <label><%:Traffic by Domain%></label>
+            <canvas id="domains-pie" width="220" height="220"></canvas>
+        </div>
+        <div class="kpi">
+            <ul>
+                <li><%:Top Domain%>: <strong id="top-domain-name">-</strong></li>
+                <li><%_<big id="domains-total-rx">0</big> total download%></li>
+                <li><%_<big id="domains-total-tx">0</big> total upload%></li>
+                <li><%_<big id="domains-count">0</big> different domains%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="domains-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Domain%></div>
+            <div class="th left"><%:Mapped App%></div>
+            <div class="th right"><%:Connections%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading domain data...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Devices Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-hosts" style="display:none">
+    <div class="head">
+        <div class="pie">
+            <label><%:Traffic by Device%></label>
+            <canvas id="hosts-pie" width="220" height="220"></canvas>
+        </div>
+        <div class="kpi">
+            <ul>
+                <li><%:Most Active%>: <strong id="top-host-name">-</strong></li>
+                <li><%_<big id="hosts-total-rx">0</big> total download%></li>
+                <li><%_<big id="hosts-total-tx">0</big> total upload%></li>
+                <li><%_<big id="hosts-count">0</big> active devices%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="hosts-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:IP Address%></div>
+            <div class="th left"><%:Top App%></div>
+            <div class="th right"><%:Connections%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading device data...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Categories Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-categories" style="display:none">
+    <div class="head">
+        <div class="pie">
+            <label><%:Traffic by Category%></label>
+            <canvas id="categories-pie" width="220" height="220"></canvas>
+        </div>
+        <div class="kpi">
+            <ul>
+                <li><%:Top Category%>: <strong id="top-category-name">-</strong></li>
+                <li><%_<big id="categories-count">0</big> categories%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="categories-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Category%></div>
+            <div class="th right"><%:Apps%></div>
+            <div class="th right"><%:Connections%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading category data...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Apps Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-device-apps" style="display:none">
+    <div class="head">
+        <div class="kpi">
+            <ul>
+                <li><%:Devices with app breakdown%></li>
+                <li><%_<big id="device-apps-count">0</big> active devices%></li>
+                <li class="hint"><%:Top 5 apps per device, sorted by total traffic%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="device-apps-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Device IP%></div>
+            <div class="th left"><%:Application%></div>
+            <div class="th left"><%:Category%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading device apps...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Section -->
+<div class="cbi-section">
+    <h3><%:Export Data%></h3>
+    <ul class="export-links">
+        <li><a href="<%=url('admin/apptraffic/data')%>?format=csv&group_by=app"><%:CSV - By Application%></a></li>
+        <li><a href="<%=url('admin/apptraffic/data')%>?format=csv&group_by=domain"><%:CSV - By Domain%></a></li>
+        <li><a href="<%=url('admin/apptraffic/data')%>?format=csv&group_by=host"><%:CSV - By Device%></a></li>
+        <li><a href="<%=url('admin/apptraffic/data')%>?format=json&group_by=app"><%:JSON - Full Data%></a></li>
+    </ul>
+</div>
+
+<script type="text/javascript">//<![CDATA[
+    AppTraffic.init();
+//]]></script>
+
+<%+footer%>

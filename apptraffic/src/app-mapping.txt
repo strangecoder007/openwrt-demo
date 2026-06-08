@@ -1,0 +1,290 @@
+# App Traffic Mapping Database
+# Format: domain_pattern,app_name,category,priority
+# Pattern uses glob matching: * matches any sequence, ? matches any char
+# Higher priority patterns are matched first (more specific ones)
+# Lines starting with # are comments
+
+# ================================================
+# Social Media & Messaging
+# ================================================
+*.facebook.com,Facebook,Social Media,100
+*.fb.com,Facebook,Social Media,90
+*.fbcdn.net,Facebook,Social Media,90
+*.instagram.com,Instagram,Social Media,100
+*.cdninstagram.com,Instagram,Social Media,90
+*.twitter.com,Twitter,Social Media,100
+*.twimg.com,Twitter,Social Media,90
+*.x.com,Twitter,Social Media,90
+*.tiktok.com,TikTok,Social Media,100
+*.tiktokcdn.com,TikTok,Social Media,90
+*.snapchat.com,Snapchat,Social Media,100
+*.reddit.com,Reddit,Social Media,100
+*.redd.it,Reddit,Social Media,90
+*.linkedin.com,LinkedIn,Social Media,100
+*.licdn.com,LinkedIn,Social Media,90
+*.pinterest.com,Pinterest,Social Media,100
+*.pinimg.com,Pinterest,Social Media,90
+*.whatsapp.com,WhatsApp,Messaging,100
+*.whatsapp.net,WhatsApp,Messaging,90
+*.telegram.org,Telegram,Messaging,100
+*.t.me,Telegram,Messaging,100
+*.signal.org,Signal,Messaging,100
+*.discord.com,Discord,Messaging,100
+*.discord.gg,Discord,Messaging,90
+*.discordapp.com,Discord,Messaging,90
+*.slack.com,Slack,Messaging,100
+*.slack-msgs.com,Slack,Messaging,90
+*.weixin.qq.com,WeChat,Messaging,100
+*.wechat.com,WeChat,Messaging,90
+*.line.me,LINE,Messaging,100
+*.line-apps.com,LINE,Messaging,90
+*.kakaocdn.net,KakaoTalk,Messaging,90
+*.kakao.com,KakaoTalk,Messaging,90
+
+# ================================================
+# Video Streaming
+# ================================================
+*.youtube.com,YouTube,Video,100
+*.ytimg.com,YouTube,Video,90
+*.googlevideo.com,YouTube,Video,95
+*.youtu.be,YouTube,Video,90
+*.netflix.com,Netflix,Video,100
+*.nflxvideo.net,Netflix,Video,95
+*.nflximg.com,Netflix,Video,90
+*.netflixdnstest.com,Netflix,Video,90
+*.bilibili.com,Bilibili,Video,100
+*.bilivideo.com,Bilibili,Video,90
+*.hdslb.com,Bilibili,Video,90
+*.iqiyi.com,iQIYI,Video,100
+*.qiyi.com,iQIYI,Video,90
+*.youku.com,Youku,Video,100
+*.youkucdn.com,Youku,Video,90
+*.tudou.com,Tudou,Video,90
+*.twitch.tv,Twitch,Video,100
+*.ttvnw.net,Twitch,Video,90
+*.primevideo.com,Amazon Prime Video,Video,100
+*.amazonvideo.com,Amazon Prime Video,Video,90
+*.disneyplus.com,Disney+,Video,100
+*.hulu.com,Hulu,Video,100
+*.hulustream.com,Hulu,Video,90
+*.hbomax.com,HBO Max,Video,100
+*.peacocktv.com,Peacock,Video,100
+*.dailymotion.com,Dailymotion,Video,100
+*.vimeo.com,Vimeo,Video,100
+*.vimeocdn.com,Vimeo,Video,90
+
+# ================================================
+# Search Engines
+# ================================================
+*.google.com,Google,Search,100
+*.googleapis.com,Google,Search,80
+*.googleusercontent.com,Google,Search,80
+*.gstatic.com,Google,Search,80
+*.google.com.hk,Google,Search,90
+*.google.cn,Google,Search,90
+*.baidu.com,Baidu,Search,100
+*.bdstatic.com,Baidu,Search,90
+*.bing.com,Bing,Search,100
+*.bingapis.com,Bing,Search,90
+*.duckduckgo.com,DuckDuckGo,Search,100
+*.yahoo.com,Yahoo,Search,100
+*.yimg.com,Yahoo,Search,90
+*.yandex.com,Yandex,Search,100
+*.yandex.ru,Yandex,Search,90
+
+# ================================================
+# Shopping / E-Commerce
+# ================================================
+*.amazon.com,Amazon,Shopping,100
+*.amazonaws.com,Amazon AWS,Cloud,80
+*.ssl-images-amazon.com,Amazon,Shopping,80
+*.taobao.com,Taobao,Shopping,100
+*.tmall.com,TMall,Shopping,100
+*.alicdn.com,Alibaba,Shopping,90
+*.alibaba.com,Alibaba,Shopping,90
+*.aliexpress.com,AliExpress,Shopping,100
+*.jd.com,JD.com,Shopping,100
+*.360buyimg.com,JD.com,Shopping,90
+*.ebay.com,eBay,Shopping,100
+*.ebayimg.com,eBay,Shopping,90
+*.etsy.com,Etsy,Shopping,100
+*.walmart.com,Walmart,Shopping,100
+*.shopee.com,Shopee,Shopping,100
+*.shopee.ph,Shopee,Shopping,90
+*.lazada.com,Lazada,Shopping,100
+*.shein.com,SHEIN,Shopping,100
+
+# ================================================
+# Cloud Storage / File Sharing
+# ================================================
+*.dropbox.com,Dropbox,Cloud Storage,100
+*.dropboxapi.com,Dropbox,Cloud Storage,90
+*.dropboxstatic.com,Dropbox,Cloud Storage,80
+*.onedrive.com,OneDrive,Cloud Storage,100
+*.sharepoint.com,OneDrive,Cloud Storage,90
+*.drive.google.com,Google Drive,Cloud Storage,100
+*.googledrive.com,Google Drive,Cloud Storage,90
+*.icloud.com,iCloud,Cloud Storage,100
+*.icloud-content.com,iCloud,Cloud Storage,90
+*.box.com,Box,Cloud Storage,100
+*.mega.nz,MEGA,Cloud Storage,100
+*.pcloud.com,pCloud,Cloud Storage,100
+
+# ================================================
+# Email
+# ================================================
+*.gmail.com,Gmail,Email,100
+*.googlemail.com,Gmail,Email,90
+*.outlook.com,Outlook,Email,100
+*.live.com,Outlook,Email,90
+*.hotmail.com,Outlook,Email,90
+*.office365.com,Microsoft 365,Email,80
+*.yahoo.mail.com,Yahoo Mail,Email,100
+*.mail.yahoo.com,Yahoo Mail,Email,90
+*.proton.me,Proton Mail,Email,100
+*.protonmail.com,Proton Mail,Email,90
+*.mail.ru,Mail.ru,Email,100
+*.qq.com,Tencent QQ,Email,100
+*.163.com,NetEase,Email,100
+*.126.com,NetEase,Email,90
+
+# ================================================
+# Gaming
+# ================================================
+*.steampowered.com,Steam,Gaming,100
+*.steamcommunity.com,Steam,Gaming,90
+*.steamcontent.com,Steam,Gaming,90
+*.epicgames.com,Epic Games,Gaming,100
+*.roblox.com,Roblox,Gaming,100
+*.minecraft.net,Minecraft,Gaming,100
+*.mojang.com,Minecraft,Gaming,90
+*.ea.com,EA Games,Gaming,100
+*.origin.com,EA Origin,Gaming,90
+*.ubisoft.com,Ubisoft,Gaming,100
+*.riotgames.com,Riot Games,Gaming,100
+*.blizzard.com,Blizzard,Gaming,100
+*.battle.net,Blizzard,Gaming,90
+*.nintendo.com,Nintendo,Gaming,100
+*.playstation.com,PlayStation,Gaming,100
+*.xbox.com,Xbox,Gaming,100
+*.xboxlive.com,Xbox,Gaming,90
+
+# ================================================
+# News & Media
+# ================================================
+*.bbc.com,BBC News,News,100
+*.bbc.co.uk,BBC News,News,90
+*.cnn.com,CNN,News,100
+*.nytimes.com,New York Times,News,100
+*.wsj.com,Wall Street Journal,News,100
+*.reuters.com,Reuters,News,100
+*.bloomberg.com,Bloomberg,News,100
+*.theguardian.com,The Guardian,News,100
+*.foxnews.com,Fox News,News,100
+*.washingtonpost.com,Washington Post,News,100
+*.sina.com.cn,Sina,News,100
+*.sohu.com,Sohu,News,100
+*.toutiao.com,Toutiao,News,100
+*.zhihu.com,Zhihu,News,100
+*.weibo.com,Weibo,Social Media,100
+
+# ================================================
+# Software Updates / CDN
+# ================================================
+*.windowsupdate.com,Windows Update,System Update,100
+*.microsoft.com,Microsoft,Technology,80
+*.apple.com,Apple,Technology,100
+*.akamaiedge.net,Akamai CDN,CDN,50
+*.akamai.net,Akamai CDN,CDN,50
+*.akamaitechnologies.com,Akamai CDN,CDN,50
+*.cloudflare.com,Cloudflare,CDN,50
+*.cloudflare.net,Cloudflare,CDN,50
+*.fastly.net,Fastly CDN,CDN,50
+*.cdn77.com,CDN77,CDN,50
+*.cloudfront.net,Amazon CloudFront,CDN,50
+
+# ================================================
+# Finance / Banking
+# ================================================
+*.paypal.com,PayPal,Finance,100
+*.stripe.com,Stripe,Finance,100
+*.alipay.com,Alipay,Finance,100
+*.wechatpay.com,WeChat Pay,Finance,90
+*.venmo.com,Venmo,Finance,100
+*.coinbase.com,Coinbase,Finance,100
+*.binance.com,Binance,Finance,100
+
+# ================================================
+# Development / Tech
+# ================================================
+*.github.com,GitHub,Development,100
+*.githubusercontent.com,GitHub,Development,90
+*.gitlab.com,GitLab,Development,100
+*.bitbucket.org,Bitbucket,Development,100
+*.stackoverflow.com,Stack Overflow,Development,100
+*.stackexchange.com,Stack Exchange,Development,90
+*.npmjs.org,npm,Development,100
+*.pypi.org,PyPI,Development,100
+*.docker.com,Docker,Development,100
+*.docker.io,Docker,Development,90
+*.kubernetes.io,Kubernetes,Development,90
+
+# ================================================
+# Music & Audio
+# ================================================
+*.spotify.com,Spotify,Music,100
+*.scdn.co,Spotify,Music,90
+*.spotifycdn.com,Spotify,Music,90
+*.applemusic.com,Apple Music,Music,100
+*.itunes.apple.com,Apple Music,Music,90
+*.pandora.com,Pandora,Music,100
+*.deezer.com,Deezer,Music,100
+*.tidal.com,Tidal,Music,100
+*.soundcloud.com,SoundCloud,Music,100
+*.sndcdn.com,SoundCloud,Music,90
+*.music.163.com,NetEase Music,Music,100
+*.kugou.com,Kugou Music,Music,100
+
+# ================================================
+# Video Conferencing
+# ================================================
+*.zoom.us,Zoom,Video Conferencing,100
+*.zoomgov.com,Zoom,Video Conferencing,90
+*.meet.google.com,Google Meet,Video Conferencing,100
+*.teams.microsoft.com,Microsoft Teams,Video Conferencing,100
+*.skype.com,Skype,Video Conferencing,100
+*.webex.com,Webex,Video Conferencing,100
+*.gotomeeting.com,GoToMeeting,Video Conferencing,100
+
+# ================================================
+# Travel
+# ================================================
+*.booking.com,Booking.com,Travel,100
+*.airbnb.com,Airbnb,Travel,100
+*.expedia.com,Expedia,Travel,100
+*.tripadvisor.com,TripAdvisor,Travel,100
+*.uber.com,Uber,Travel,100
+*.lyft.com,Lyft,Travel,100
+*.ctrip.com,Ctrip,Travel,100
+
+# ================================================
+# VPN & Proxy Services
+# ================================================
+*.nordvpn.com,NordVPN,VPN,100
+*.expressvpn.com,ExpressVPN,VPN,100
+*.surfshark.com,Surfshark,VPN,100
+*.protonvpn.com,ProtonVPN,VPN,100
+*.v2ray.com,V2Ray,VPN,90
+*.shadowsocks.org,Shadowsocks,VPN,90
+
+# ================================================
+# Default patterns (lower priority)
+# ================================================
+*.ad.*,Advertising,Advertising,10
+*.ads.*,Advertising,Advertising,10
+*.doubleclick.*,Google Ads,Advertising,20
+*.googlesyndication.*,Google Ads,Advertising,20
+*.analytics.*,Analytics,Analytics,10
+*.telemetry.*,Telemetry,Analytics,10
+*.tracker.*,Tracker,Analytics,10
+*.telemetry.*,Telemetry,System Update,10

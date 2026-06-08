@@ -1,0 +1,247 @@
+/*
+ * App Traffic Analyzer Styles
+ */
+
+.apptraffic-desc {
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.apptraffic-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.apptraffic-controls label {
+    font-weight: bold;
+    margin-right: 4px;
+}
+
+.apptraffic-controls select {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+}
+
+.apptraffic-update-time {
+    color: #999;
+    font-size: 0.85em;
+    margin-left: auto;
+}
+
+/* Tab menu */
+#apptraffic-tabs {
+    margin-bottom: 0;
+    border-bottom: 2px solid #5b9fd4;
+}
+
+#apptraffic-tabs .cbi-tab {
+    display: inline-block;
+    padding: 8px 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    margin-right: 2px;
+    background: #e8e8e8;
+    color: #555;
+    font-weight: normal;
+    user-select: none;
+}
+
+#apptraffic-tabs .cbi-tab:hover {
+    background: #dcdcdc;
+}
+
+#apptraffic-tabs .cbi-tab.active {
+    background: #5b9fd4;
+    color: #fff;
+    font-weight: bold;
+    cursor: default;
+}
+
+/* Tab content */
+.apptraffic-tab-content {
+    margin-top: 0;
+}
+
+/* Head section with pie charts and KPIs */
+.apptraffic-tab-content .head {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 15px;
+    background: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.apptraffic-tab-content .head .pie {
+    text-align: center;
+}
+
+.apptraffic-tab-content .head .pie label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.apptraffic-tab-content .head .pie canvas {
+    max-width: 220px;
+    max-height: 220px;
+}
+
+.apptraffic-tab-content .head .kpi {
+    flex: 1;
+    min-width: 200px;
+}
+
+.apptraffic-tab-content .head .kpi ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.apptraffic-tab-content .head .kpi li {
+    padding: 4px 0;
+    font-size: 0.9em;
+    color: #444;
+}
+
+.apptraffic-tab-content .head .kpi big {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #333;
+}
+
+/* Data tables */
+.apptraffic-tab-content .table {
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.apptraffic-tab-content .table .tr {
+    display: flex;
+    border-bottom: 1px solid #eee;
+    line-height: 32px;
+}
+
+.apptraffic-tab-content .table .tr:last-child {
+    border-bottom: none;
+}
+
+.apptraffic-tab-content .table .tr.table-titles {
+    background: #5b9fd4;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.85em;
+    line-height: 28px;
+}
+
+.apptraffic-tab-content .table .tr:nth-child(even):not(.table-titles) {
+    background: #fafafa;
+}
+
+.apptraffic-tab-content .table .tr:hover:not(.table-titles):not(.placeholder) {
+    background: #f0f7ff;
+}
+
+.apptraffic-tab-content .table .th,
+.apptraffic-tab-content .table .td {
+    padding: 2px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85em;
+}
+
+.apptraffic-tab-content .table .th.left,
+.apptraffic-tab-content .table .td.left {
+    flex: 2;
+    text-align: left;
+}
+
+.apptraffic-tab-content .table .th.right,
+.apptraffic-tab-content .table .td.right {
+    flex: 1;
+    text-align: right;
+    min-width: 80px;
+}
+
+.apptraffic-tab-content .table .placeholder .td {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+    font-style: italic;
+}
+
+/* Spinning animation for loading */
+.em.spinning {
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    padding-left: 20px;
+    position: relative;
+}
+
+.em.spinning::before {
+    content: '\21bb';
+    position: absolute;
+    left: 0;
+    font-style: normal;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Export links */
+.export-links {
+    list-style: none;
+    padding: 10px 0;
+}
+
+.export-links li {
+    padding: 3px 0;
+}
+
+.export-links a {
+    color: #5b9fd4;
+    text-decoration: none;
+}
+
+.export-links a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .apptraffic-tab-content .head {
+        flex-direction: column;
+    }
+
+    .apptraffic-tab-content .head .pie {
+        width: 100%;
+    }
+
+    .apptraffic-tab-content .head .pie canvas {
+        max-width: 160px;
+        max-height: 160px;
+    }
+
+    .apptraffic-tab-content .table .th.right,
+    .apptraffic-tab-content .table .td.right {
+        min-width: 60px;
+        font-size: 0.75em;
+    }
+}

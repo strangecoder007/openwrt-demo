@@ -1,0 +1,12 @@
+#!/bin/sh
+# LuCI App Traffic Analyzer - UCI defaults
+
+uci -q batch <<-EOF >/dev/null
+    delete ucitrack.@apptraffic[-1]
+    add ucitrack apptraffic
+    set ucitrack.@apptraffic[-1].init=apptraffic
+    commit ucitrack
+EOF
+
+rm -f /tmp/luci-indexcache
+exit 0

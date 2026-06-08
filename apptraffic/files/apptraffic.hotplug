@@ -1,0 +1,12 @@
+#!/bin/sh
+# App Traffic Analyzer - hotplug script
+# Restart capture when interfaces change
+
+[ "$ACTION" = "ifup" ] || exit 0
+
+logger -t apptraffic "Reloading apptraffic due to $ACTION of $INTERFACE ($DEVICE)"
+
+# Restart apptraffic to re-attach capture to the new interface
+if [ -x /etc/init.d/apptraffic ]; then
+    /etc/init.d/apptraffic restart
+fi

@@ -1,0 +1,221 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "App Traffic Analyzer - Application & Website Identification"
+msgstr "应用流量分析 - 识别应用和网站"
+
+msgid "Application Traffic Analyzer"
+msgstr "应用流量分析"
+
+msgid "App Traffic"
+msgstr "应用流量"
+
+msgid "Traffic Analysis"
+msgstr "流量分析"
+
+msgid "Configuration"
+msgstr "配置"
+
+msgid "Identify which applications and websites are being accessed on your network."
+msgstr "识别网络中正在访问的应用程序和网站。"
+
+msgid "Data is collected from DNS queries, TLS SNI headers, and HTTP Host headers."
+msgstr "数据通过DNS查询、TLS SNI头和HTTP主机头收集。"
+
+msgid "Period:"
+msgstr "时间段："
+
+msgid "Today"
+msgstr "今天"
+
+msgid "Yesterday"
+msgstr "昨天"
+
+msgid "Last 7 Days"
+msgstr "最近7天"
+
+msgid "Last 30 Days"
+msgstr "最近30天"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Applications"
+msgstr "应用程序"
+
+msgid "Domains"
+msgstr "域名"
+
+msgid "Devices"
+msgstr "设备"
+
+msgid "Categories"
+msgstr "分类"
+
+msgid "Traffic by Application"
+msgstr "应用程序流量"
+
+msgid "Traffic by Domain"
+msgstr "域名流量"
+
+msgid "Traffic by Device"
+msgstr "设备流量"
+
+msgid "Traffic by Category"
+msgstr "分类流量"
+
+msgid "Top App"
+msgstr "热门应用"
+
+msgid "Top Domain"
+msgstr "热门域名"
+
+msgid "Most Active"
+msgstr "最活跃"
+
+msgid "Top Category"
+msgstr "热门分类"
+
+msgid "total download"
+msgstr "总下载"
+
+msgid "total upload"
+msgstr "总上传"
+
+msgid "different apps"
+msgstr "不同应用"
+
+msgid "different domains"
+msgstr "不同域名"
+
+msgid "active devices"
+msgstr "活跃设备"
+
+msgid "categories"
+msgstr "分类"
+
+msgid "Application"
+msgstr "应用程序"
+
+msgid "Domain"
+msgstr "域名"
+
+msgid "Mapped App"
+msgstr "映射应用"
+
+msgid "IP Address"
+msgstr "IP地址"
+
+msgid "Category"
+msgstr "类别"
+
+msgid "Connections"
+msgstr "连接数"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "Share"
+msgstr "占比"
+
+msgid "Apps"
+msgstr "应用数"
+
+msgid "Loading traffic data..."
+msgstr "正在加载流量数据..."
+
+msgid "Loading domain data..."
+msgstr "正在加载域名数据..."
+
+msgid "Loading device data..."
+msgstr "正在加载设备数据..."
+
+msgid "Loading category data..."
+msgstr "正在加载分类数据..."
+
+msgid "No data available"
+msgstr "暂无数据"
+
+msgid "Export Data"
+msgstr "导出数据"
+
+msgid "CSV - By Application"
+msgstr "CSV - 按应用程序"
+
+msgid "CSV - By Domain"
+msgstr "CSV - 按域名"
+
+msgid "CSV - By Device"
+msgstr "CSV - 按设备"
+
+msgid "JSON - Full Data"
+msgstr "JSON - 完整数据"
+
+msgid "Configure the App Traffic Analyzer daemon. This tool identifies which applications and websites are being accessed on your network by analyzing DNS queries, TLS SNI headers, and HTTP requests."
+msgstr "配置应用流量分析守护进程。此工具通过分析DNS查询、TLS SNI头和HTTP请求来识别网络中正在访问的应用程序和网站。"
+
+msgid "General Settings"
+msgstr "常规设置"
+
+msgid "Enable"
+msgstr "启用"
+
+msgid "Enable or disable the traffic analyzer daemon."
+msgstr "启用或禁用流量分析守护进程。"
+
+msgid "Capture Interface"
+msgstr "捕获接口"
+
+msgid "Network interface to capture traffic on. Use 'any' to monitor all interfaces."
+msgstr "要捕获流量的网络接口。使用 'any' 监控所有接口。"
+
+msgid "Database Directory"
+msgstr "数据库目录"
+
+msgid "Directory to store the traffic database. One SQLite database file will be created here along with WAL journal files."
+msgstr "存储流量数据库的目录。将在此创建SQLite数据库文件和WAL日志文件。"
+
+msgid "Commit Interval"
+msgstr "提交间隔"
+
+msgid "How often traffic data is committed to disk. Shorter intervals reduce data loss risk but increase flash wear."
+msgstr "流量数据提交到磁盘的频率。较短的间隔可降低数据丢失风险，但会增加闪存磨损。"
+
+msgid "30s - Frequent commits (less data loss risk)"
+msgstr "30秒 - 频繁提交（数据丢失风险低）"
+
+msgid "60s - Normal (recommended)"
+msgstr "60秒 - 正常（推荐）"
+
+msgid "5m - Reduced flash wear"
+msgstr "5分钟 - 减少闪存磨损"
+
+msgid "10m - Minimal flash wear (more data loss risk)"
+msgstr "10分钟 - 最小闪存磨损（数据丢失风险较高）"
+
+msgid "1h - Least frequent (highest data loss risk)"
+msgstr "1小时 - 最低频率（数据丢失风险最高）"
+
+msgid "DNS Cache Timeout"
+msgstr "DNS缓存超时"
+
+msgid "How long (in seconds) IP-to-domain mappings are kept in memory. Longer timeouts improve detection accuracy but use more memory."
+msgstr "IP到域名映射在内存中保留的时间（秒）。较长的超时可提高检测准确性，但会使用更多内存。"
+
+msgid "Flow Timeout"
+msgstr "流超时"
+
+msgid "How long (in seconds) idle flows are tracked before removal. Longer timeouts capture long-lived connections but use more memory."
+msgstr "空闲流量在移除前的跟踪时间（秒）。较长的超时可捕获长连接，但会使用更多内存。"
+
+msgid "App Mapping Database"
+msgstr "应用映射数据库"
+
+msgid "Domain-to-application mapping rules. Each line maps a domain pattern to an application name. Use * as wildcard. Format: domain_pattern,app_name,category,priority"
+msgstr "域名到应用程序的映射规则。每行将一个域名模式映射到一个应用名称。使用 * 作为通配符。格式：域名模式,应用名称,分类,优先级"

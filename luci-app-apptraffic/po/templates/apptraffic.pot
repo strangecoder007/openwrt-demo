@@ -1,0 +1,221 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "App Traffic Analyzer - Application & Website Identification"
+msgstr ""
+
+msgid "Application Traffic Analyzer"
+msgstr ""
+
+msgid "App Traffic"
+msgstr ""
+
+msgid "Traffic Analysis"
+msgstr ""
+
+msgid "Configuration"
+msgstr ""
+
+msgid "Identify which applications and websites are being accessed on your network."
+msgstr ""
+
+msgid "Data is collected from DNS queries, TLS SNI headers, and HTTP Host headers."
+msgstr ""
+
+msgid "Period:"
+msgstr ""
+
+msgid "Today"
+msgstr ""
+
+msgid "Yesterday"
+msgstr ""
+
+msgid "Last 7 Days"
+msgstr ""
+
+msgid "Last 30 Days"
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Applications"
+msgstr ""
+
+msgid "Domains"
+msgstr ""
+
+msgid "Devices"
+msgstr ""
+
+msgid "Categories"
+msgstr ""
+
+msgid "Traffic by Application"
+msgstr ""
+
+msgid "Traffic by Domain"
+msgstr ""
+
+msgid "Traffic by Device"
+msgstr ""
+
+msgid "Traffic by Category"
+msgstr ""
+
+msgid "Top App"
+msgstr ""
+
+msgid "Top Domain"
+msgstr ""
+
+msgid "Most Active"
+msgstr ""
+
+msgid "Top Category"
+msgstr ""
+
+msgid "total download"
+msgstr ""
+
+msgid "total upload"
+msgstr ""
+
+msgid "different apps"
+msgstr ""
+
+msgid "different domains"
+msgstr ""
+
+msgid "active devices"
+msgstr ""
+
+msgid "categories"
+msgstr ""
+
+msgid "Application"
+msgstr ""
+
+msgid "Domain"
+msgstr ""
+
+msgid "Mapped App"
+msgstr ""
+
+msgid "IP Address"
+msgstr ""
+
+msgid "Category"
+msgstr ""
+
+msgid "Connections"
+msgstr ""
+
+msgid "Download"
+msgstr ""
+
+msgid "Upload"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Share"
+msgstr ""
+
+msgid "Apps"
+msgstr ""
+
+msgid "Loading traffic data..."
+msgstr ""
+
+msgid "Loading domain data..."
+msgstr ""
+
+msgid "Loading device data..."
+msgstr ""
+
+msgid "Loading category data..."
+msgstr ""
+
+msgid "No data available"
+msgstr ""
+
+msgid "Export Data"
+msgstr ""
+
+msgid "CSV - By Application"
+msgstr ""
+
+msgid "CSV - By Domain"
+msgstr ""
+
+msgid "CSV - By Device"
+msgstr ""
+
+msgid "JSON - Full Data"
+msgstr ""
+
+msgid "Configure the App Traffic Analyzer daemon. This tool identifies which applications and websites are being accessed on your network by analyzing DNS queries, TLS SNI headers, and HTTP requests."
+msgstr ""
+
+msgid "General Settings"
+msgstr ""
+
+msgid "Enable"
+msgstr ""
+
+msgid "Enable or disable the traffic analyzer daemon."
+msgstr ""
+
+msgid "Capture Interface"
+msgstr ""
+
+msgid "Network interface to capture traffic on. Use 'any' to monitor all interfaces."
+msgstr ""
+
+msgid "Database Directory"
+msgstr ""
+
+msgid "Directory to store the traffic database. One SQLite database file will be created here along with WAL journal files."
+msgstr ""
+
+msgid "Commit Interval"
+msgstr ""
+
+msgid "How often traffic data is committed to disk. Shorter intervals reduce data loss risk but increase flash wear."
+msgstr ""
+
+msgid "30s - Frequent commits (less data loss risk)"
+msgstr ""
+
+msgid "60s - Normal (recommended)"
+msgstr ""
+
+msgid "5m - Reduced flash wear"
+msgstr ""
+
+msgid "10m - Minimal flash wear (more data loss risk)"
+msgstr ""
+
+msgid "1h - Least frequent (highest data loss risk)"
+msgstr ""
+
+msgid "DNS Cache Timeout"
+msgstr ""
+
+msgid "How long (in seconds) IP-to-domain mappings are kept in memory. Longer timeouts improve detection accuracy but use more memory."
+msgstr ""
+
+msgid "Flow Timeout"
+msgstr ""
+
+msgid "How long (in seconds) idle flows are tracked before removal. Longer timeouts capture long-lived connections but use more memory."
+msgstr ""
+
+msgid "App Mapping Database"
+msgstr ""
+
+msgid "Domain-to-application mapping rules. Each line maps a domain pattern to an application name. Use * as wildcard. Format: domain_pattern,app_name,category,priority"
+msgstr ""
