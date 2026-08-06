@@ -323,6 +323,7 @@ apptraffic -c csv -g host -t month
 | commit_interval | 60 | 数据提交间隔（秒），越短数据越安全但闪存磨损越大 |
 | dns_timeout | 3600 | IP→域名映射缓存时间（秒） |
 | flow_timeout | 300 | 空闲流超时删除时间（秒） |
+| retention_days | 30 | 每条流每天只保留一条汇总记录，超过该天数的数据自动删除，防止数据库无限增长把 /tmp 写满 |
 
 ---
 

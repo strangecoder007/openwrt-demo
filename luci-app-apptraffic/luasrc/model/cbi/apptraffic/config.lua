@@ -53,6 +53,15 @@ dns_timeout.default = "3600"
 dns_timeout.datatype = "uinteger"
 dns_timeout.placeholder = "3600"
 
+-- Data retention
+local retention = s:option(Value, "retention_days", translate("Data Retention (Days)"),
+    translate("How many days of per-flow daily statistics to keep. Older rows " ..
+              "are deleted automatically to keep the database size bounded. " ..
+              "Lower this value if the router's /tmp partition fills up."))
+retention.default = "30"
+retention.datatype = "uinteger"
+retention.placeholder = "30"
+
 -- App Mapping File
 local map_file = s:option(TextValue, "_mapping", translate("App Mapping Database"),
     translate("Domain-to-application mapping rules. Each line maps a domain pattern " ..

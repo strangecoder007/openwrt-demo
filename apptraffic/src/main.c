@@ -12,6 +12,9 @@
  * Licensed under GPL-2.0
  */
 
+/* strcasestr() is a GNU extension; musl only declares it with _GNU_SOURCE */
+#define _GNU_SOURCE
+
 #include "apptraffic.h"
 #include <getopt.h>
 
@@ -931,11 +934,14 @@ struct db_handle *database_open(const char *path)
     sqlite3_exec(db->conn, "PRAGMA journal_mode=WAL", NULL, NULL, NULL);
     sqlite3_exec(db->conn, "PRAGMA synchronous=NORMAL", NULL, NULL, NULL);
 
-    /* Create tables */
+    /* New schema: one aggregated row per (flow, day) instead of one raw row
+     * per connection per commit. 'timestamp' keeps the last-seen time so the
+     * live view still works; 'day' is the UTC day bucket used for dedup. */
     const char *create_sql =
         "CREATE TABLE IF NOT EXISTS traffic ("
         "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
         "  timestamp INTEGER NOT NULL,"
+        "  day INTEGER NOT NULL,"
         "  src_ip TEXT NOT NULL,"
         "  dst_ip TEXT NOT NULL,"
         "  src_port INTEGER,"
@@ -950,7 +956,68 @@ struct db_handle *database_open(const char *path)
         "  tx_packets INTEGER DEFAULT 0"
         ")"
     ;
-    sqlite3_exec(db->conn, create_sql, NULL, NULL, NULL);
+
+    /* Detect whether the table exists and uses the new schema */
+    int table_exists = 0;
+    int has_day = 0;
+    sqlite3_stmt *info_stmt = NULL;
+    if (sqlite3_prepare_v2(db->conn,
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='traffic'",
+            -1, &info_stmt, NULL) == SQLITE_OK) {
+        if (sqlite3_step(info_stmt) == SQLITE_ROW)
+            table_exists = 1;
+        sqlite3_finalize(info_stmt);
+    }
+    if (table_exists &&
+        sqlite3_prepare_v2(db->conn, "PRAGMA table_info(traffic)",
+                           -1, &info_stmt, NULL) == SQLITE_OK) {
+        while (sqlite3_step(info_stmt) == SQLITE_ROW) {
+            const char *name = (const char *)sqlite3_column_text(info_stmt, 1);
+            if (name && strcmp(name, "day") == 0) {
+                has_day = 1;
+                break;
+            }
+        }
+        sqlite3_finalize(info_stmt);
+    }
+
+    if (table_exists && !has_day) {
+        /* Old schema (raw sample per commit). Rename the old table, recreate
+         * with the new schema and aggregate the old samples into per-flow-per-
+         * day rows. If the tmpfs has no room to keep the old data, drop it. */
+        sqlite3_exec(db->conn, "ALTER TABLE traffic RENAME TO traffic_old",
+                     NULL, NULL, NULL);
+        /* Old indexes keep their names after the rename, so drop them before
+         * recreating with the same names on the new table. */
+        sqlite3_exec(db->conn, "DROP INDEX IF EXISTS idx_traffic_timestamp",
+                     NULL, NULL, NULL);
+        sqlite3_exec(db->conn, "DROP INDEX IF EXISTS idx_traffic_app",
+                     NULL, NULL, NULL);
+        sqlite3_exec(db->conn, "DROP INDEX IF EXISTS idx_traffic_domain",
+                     NULL, NULL, NULL);
+
+        sqlite3_exec(db->conn, create_sql, NULL, NULL, NULL);
+
+        int rc = sqlite3_exec(db->conn,
+            "INSERT INTO traffic (timestamp, day, src_ip, dst_ip, src_port,"
+            "  dst_port, protocol, domain, app_name, app_category,"
+            "  rx_bytes, tx_bytes, rx_packets, tx_packets)"
+            "SELECT MAX(timestamp), timestamp/86400,"
+            "  src_ip, dst_ip, src_port, dst_port, protocol,"
+            "  MAX(domain), MAX(app_name), MAX(app_category),"
+            "  SUM(rx_bytes), SUM(tx_bytes), SUM(rx_packets), SUM(tx_packets)"
+            " FROM traffic_old"
+            " GROUP BY src_ip, dst_ip, src_port, dst_port, protocol, timestamp/86400",
+            NULL, NULL, NULL);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "Note: could not migrate old traffic rows (%s), "
+                    "dropping them\n", sqlite3_errmsg(db->conn));
+        }
+        sqlite3_exec(db->conn, "DROP TABLE IF EXISTS traffic_old",
+                     NULL, NULL, NULL);
+    } else if (!table_exists) {
+        sqlite3_exec(db->conn, create_sql, NULL, NULL, NULL);
+    }
 
     /* Create indices */
     sqlite3_exec(db->conn,
@@ -961,6 +1028,12 @@ struct db_handle *database_open(const char *path)
         NULL, NULL, NULL);
     sqlite3_exec(db->conn,
         "CREATE INDEX IF NOT EXISTS idx_traffic_domain ON traffic(domain)",
+        NULL, NULL, NULL);
+    /* Unique index: one aggregate row per flow per day, so INSERT OR IGNORE
+     * + UPDATE can accumulate deltas instead of appending rows forever. */
+    sqlite3_exec(db->conn,
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_traffic_flow_day ON traffic("
+        "src_ip, dst_ip, src_port, dst_port, protocol, day)",
         NULL, NULL, NULL);
 
     return db;
@@ -989,38 +1062,84 @@ int database_store_flow(struct db_handle *db, struct flow_entry *flow,
     if (flow->protocol == IPPROTO_UDP) proto_str = "udp";
     else if (flow->protocol == IPPROTO_ICMP) proto_str = "icmp";
 
-    const char *sql =
-        "INSERT INTO traffic (timestamp, src_ip, dst_ip, src_port, dst_port,"
-        "  protocol, domain, app_name, app_category, rx_bytes, tx_bytes,"
-        "  rx_packets, tx_packets)"
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    /* Aggregated storage: keep one row per (flow, day). The first insert of a
+     * new flow-day pair inserts a zeroed row; the following UPDATE accumulates
+     * the delta. This keeps the table size bounded by the number of distinct
+     * flows per day instead of growing one row per connection per commit. */
+    const char *sql_insert =
+        "INSERT OR IGNORE INTO traffic (timestamp, day, src_ip, dst_ip,"
+        "  src_port, dst_port, protocol, domain, app_name, app_category,"
+        "  rx_bytes, tx_bytes, rx_packets, tx_packets)"
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)";
 
     sqlite3_stmt *stmt = NULL;
-    int rc = sqlite3_prepare_v2(db->conn, sql, -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db->conn, sql_insert, -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "SQL prepare error: %s\n", sqlite3_errmsg(db->conn));
         return -1;
     }
 
+    sqlite3_int64 day = (sqlite3_int64)(flow->last_seen / 86400);
+
     sqlite3_bind_int64(stmt, 1, (sqlite3_int64)flow->last_seen);
-    sqlite3_bind_text(stmt, 2, src_ip, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 3, dst_ip, -1, SQLITE_STATIC);
-    sqlite3_bind_int(stmt, 4, flow->src_port);
-    sqlite3_bind_int(stmt, 5, flow->dst_port);
-    sqlite3_bind_text(stmt, 6, proto_str, -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 7, domain ? domain : "", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 8, app ? app : "Unknown", -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 9, domain ? mapping_lookup_category(domain) : "General", -1, SQLITE_STATIC);
-    sqlite3_bind_int64(stmt, 10, (sqlite3_int64)flow->rx_bytes);
-    sqlite3_bind_int64(stmt, 11, (sqlite3_int64)flow->tx_bytes);
-    sqlite3_bind_int64(stmt, 12, (sqlite3_int64)flow->rx_packets);
-    sqlite3_bind_int64(stmt, 13, (sqlite3_int64)flow->tx_packets);
+    sqlite3_bind_int64(stmt, 2, day);
+    sqlite3_bind_text(stmt, 3, src_ip, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, dst_ip, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 5, flow->src_port);
+    sqlite3_bind_int(stmt, 6, flow->dst_port);
+    sqlite3_bind_text(stmt, 7, proto_str, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 8, domain ? domain : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 9, app ? app : "Unknown", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 10, domain ? mapping_lookup_category(domain) : "General", -1, SQLITE_STATIC);
 
     rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     if (rc != SQLITE_DONE) {
         fprintf(stderr, "SQL insert error: %s\n", sqlite3_errmsg(db->conn));
+        return -1;
+    }
+
+    const char *sql_update =
+        "UPDATE traffic SET"
+        "  timestamp = ?1,"
+        "  domain = ?2,"
+        "  app_name = ?3,"
+        "  app_category = ?4,"
+        "  rx_bytes = rx_bytes + ?5,"
+        "  tx_bytes = tx_bytes + ?6,"
+        "  rx_packets = rx_packets + ?7,"
+        "  tx_packets = tx_packets + ?8"
+        " WHERE src_ip = ?9 AND dst_ip = ?10 AND src_port = ?11"
+        "   AND dst_port = ?12 AND protocol = ?13 AND day = ?14";
+
+    stmt = NULL;
+    rc = sqlite3_prepare_v2(db->conn, sql_update, -1, &stmt, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "SQL prepare error: %s\n", sqlite3_errmsg(db->conn));
+        return -1;
+    }
+
+    sqlite3_bind_int64(stmt, 1, (sqlite3_int64)flow->last_seen);
+    sqlite3_bind_text(stmt, 2, domain ? domain : "", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 3, app ? app : "Unknown", -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 4, domain ? mapping_lookup_category(domain) : "General", -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 5, (sqlite3_int64)flow->rx_bytes);
+    sqlite3_bind_int64(stmt, 6, (sqlite3_int64)flow->tx_bytes);
+    sqlite3_bind_int64(stmt, 7, (sqlite3_int64)flow->rx_packets);
+    sqlite3_bind_int64(stmt, 8, (sqlite3_int64)flow->tx_packets);
+    sqlite3_bind_text(stmt, 9, src_ip, -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 10, dst_ip, -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 11, flow->src_port);
+    sqlite3_bind_int(stmt, 12, flow->dst_port);
+    sqlite3_bind_text(stmt, 13, proto_str, -1, SQLITE_STATIC);
+    sqlite3_bind_int64(stmt, 14, day);
+
+    rc = sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "SQL update error: %s\n", sqlite3_errmsg(db->conn));
         return -1;
     }
 
@@ -1033,6 +1152,30 @@ int database_commit(struct db_handle *db)
     if (db && db->conn) {
         sqlite3_wal_checkpoint(db->conn, NULL);
     }
+    return 0;
+}
+
+int database_prune(struct db_handle *db, int retention_days)
+{
+    if (!db || !db->conn || retention_days <= 0) return -1;
+
+    /* Delete rows older than the retention window so the database stays
+     * bounded. The timestamp index keeps this cheap. */
+    char sql[256];
+    snprintf(sql, sizeof(sql),
+        "DELETE FROM traffic WHERE timestamp < strftime('%%s','now') - %d * 86400",
+        retention_days);
+
+    int rc = sqlite3_exec(db->conn, sql, NULL, NULL, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "Prune error: %s\n", sqlite3_errmsg(db->conn));
+        return -1;
+    }
+
+    /* Truncate the WAL back to zero so the tmpfs space is actually freed
+     * instead of lingering in the write-ahead log. */
+    sqlite3_wal_checkpoint_v2(db->conn, NULL, SQLITE_CHECKPOINT_TRUNCATE,
+                              NULL, NULL);
     return 0;
 }
 
@@ -1379,14 +1522,16 @@ static void flow_to_db_cb(struct flow_entry *flow, void *user)
         app = mapping_lookup_app(domain);
     }
 
-    database_store_flow(ctx->db, flow, app, domain);
-
-    /* Reset accumulated deltas after storing */
-    flow->rx_bytes = 0;
-    flow->tx_bytes = 0;
-    flow->rx_packets = 0;
-    flow->tx_packets = 0;
-    flow->dirty = 0;
+    /* Only reset the accumulated deltas when the row was stored successfully.
+     * If the database is temporarily full, keep the data in memory so it is
+     * not silently lost and can be flushed at the next commit. */
+    if (database_store_flow(ctx->db, flow, app, domain) == 0) {
+        flow->rx_bytes = 0;
+        flow->tx_bytes = 0;
+        flow->rx_packets = 0;
+        flow->tx_packets = 0;
+        flow->dirty = 0;
+    }
 }
 
 /* ================================================================
@@ -1410,8 +1555,11 @@ static void daemon_loop(void)
 
         /* Store flows to database and commit */
         if (now - last_commit >= g_config.commit_interval) {
-            struct store_ctx ctx = { g_db, 0 };
+            struct store_ctx ctx = { g_db };
             conntrack_foreach_flow(flow_to_db_cb, &ctx);
+            /* Bound database size: drop rows older than the retention window
+             * and reclaim WAL space, keeping /tmp from filling up. */
+            database_prune(g_db, g_config.retention_days);
             database_commit(g_db);
             last_commit = now;
         }
@@ -1463,11 +1611,12 @@ static void print_usage(const char *prog)
         "  -m, --map-file PATH   App mapping file path (default: %s)\n"
         "  -C, --commit SECS     Commit interval in seconds (default: 60)\n"
         "  -I, --dns-timeout SEC DNS cache timeout in seconds (default: 3600)\n"
+        "  -R, --retention DAYS  Keep per-flow daily stats for N days (default: %d)\n"
         "\n"
         "Other:\n"
         "  -h, --help            Show this help\n"
         "  -v, --version         Show version\n",
-        prog, DEFAULT_DB_PATH, DEFAULT_APP_MAP);
+        prog, DEFAULT_DB_PATH, DEFAULT_APP_MAP, RETENTION_DAYS);
 }
 
 int main(int argc, char *argv[])
@@ -1480,6 +1629,7 @@ int main(int argc, char *argv[])
     g_config.commit_interval = COMMIT_INTERVAL;
     g_config.dns_timeout = DNS_CACHE_TIMEOUT;
     g_config.flow_timeout = FLOW_TIMEOUT;
+    g_config.retention_days = RETENTION_DAYS;
     g_config.daemon_mode = 0;
     strcpy(g_config.output_format, "json");
     strcpy(g_config.group_by, "app");
@@ -1497,13 +1647,14 @@ int main(int argc, char *argv[])
         { "map-file",    required_argument, 0, 'm' },
         { "commit",      required_argument, 0, 'C' },
         { "dns-timeout", required_argument, 0, 'I' },
+        { "retention",   required_argument, 0, 'R' },
         { "help",        no_argument,       0, 'h' },
         { "version",     no_argument,       0, 'v' },
         { 0, 0, 0, 0 }
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "dqc:s:g:t:i:D:m:C:I:hv",
+    while ((opt = getopt_long(argc, argv, "dqc:s:g:t:i:D:m:C:I:R:hv",
                               long_opts, NULL)) != -1) {
         switch (opt) {
         case 'd': g_config.daemon_mode = 1; break;
@@ -1517,6 +1668,7 @@ int main(int argc, char *argv[])
         case 'm': strncpy(g_config.app_map_path, optarg, sizeof(g_config.app_map_path) - 1); break;
         case 'C': g_config.commit_interval = atoi(optarg); break;
         case 'I': g_config.dns_timeout = atoi(optarg); break;
+        case 'R': g_config.retention_days = atoi(optarg); break;
         case 'v':
             printf("apptraffic v1.0.0 - Application Traffic Analyzer for OpenWrt\n");
             return 0;
@@ -1539,6 +1691,7 @@ int main(int argc, char *argv[])
         fprintf(stderr, "  Interface: %s\n", g_config.iface);
         fprintf(stderr, "  Database:  %s\n", g_config.db_path);
         fprintf(stderr, "  App Map:   %s\n", g_config.app_map_path);
+        fprintf(stderr, "  Retention: %d days\n", g_config.retention_days);
 
         /* Open database */
         g_db = database_open(g_config.db_path);

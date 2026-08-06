@@ -9,7 +9,7 @@ USE_PROCD=1
 PROG=/usr/sbin/apptraffic
 
 start_service() {
-    local interface database commit_interval dns_timeout enabled
+    local interface database commit_interval dns_timeout retention_days enabled
 
     config_load apptraffic
     config_get enabled apptraffic enabled "1"
@@ -17,6 +17,7 @@ start_service() {
     config_get database apptraffic database "/var/lib/apptraffic"
     config_get commit_interval apptraffic commit_interval "60"
     config_get dns_timeout apptraffic dns_timeout "3600"
+    config_get retention_days apptraffic retention_days "30"
 
     [ "$enabled" != "1" ] && return 0
 
@@ -28,7 +29,8 @@ start_service() {
         -i "$interface" \
         -D "$database" \
         -C "$commit_interval" \
-        -I "$dns_timeout"
+        -I "$dns_timeout" \
+        -R "$retention_days"
     procd_set_param respawn
     procd_set_param stdout 1
     procd_set_param stderr 1

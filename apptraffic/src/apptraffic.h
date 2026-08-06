@@ -32,6 +32,7 @@
 #define DNS_CACHE_TIMEOUT  3600    /* 1 hour */
 #define FLOW_TIMEOUT       300     /* 5 minutes idle */
 #define COMMIT_INTERVAL    60      /* commit every 60 seconds */
+#define RETENTION_DAYS     30      /* keep per-flow daily aggregates for 30 days */
 
 /* Default paths */
 #define DEFAULT_DB_PATH    "/var/lib/apptraffic"
@@ -106,6 +107,7 @@ struct config {
     int             commit_interval;
     int             dns_timeout;
     int             flow_timeout;
+    int             retention_days;
     int             daemon_mode;
     char            output_format[16];
     char            group_by[32];
@@ -143,6 +145,7 @@ struct db_handle *database_open(const char *path);
 void database_close(struct db_handle *db);
 int  database_store_flow(struct db_handle *db, struct flow_entry *flow, const char *app, const char *domain);
 int  database_commit(struct db_handle *db);
+int  database_prune(struct db_handle *db, int retention_days);
 struct traffic_stat *database_query(struct db_handle *db, const char *group_by, const char *period);
 void database_free_stats(struct traffic_stat *stats);
 
