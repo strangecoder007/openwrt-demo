@@ -1,0 +1,2 @@
+# 本仓库全部为文本源码，统一 LF 行尾，避免 Windows CRLF 影响 shell 脚本
+* text eol=lf
