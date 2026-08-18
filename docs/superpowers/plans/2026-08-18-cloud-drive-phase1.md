@@ -40,6 +40,10 @@
 make menuconfig
 #  Network -> Web Servers/Proxies -> <*> lighttpd
 #                                   <*> lighttpd-mod-webdav
+#                                   <*> lighttpd-mod-auth
+#                                   <*> lighttpd-mod-authn_file
+#                                   <*> lighttpd-mod-alias
+#                                   <*> lighttpd-mod-accesslog
 # 保存退出（依赖 libsqlite3/libuuid/libxml2/libpcre 会自动选中）
 ```
 
@@ -67,7 +71,9 @@ ls -l bin/targets/imx6/generic/packages/lighttpd*.ipk \
       bin/targets/imx6/generic/packages/libpcre*.ipk
 ```
 
-预期：全部列出（libpcre 若板子已有可跳过）。
+预期：lighttpd、lighttpd-mod-webdav、lighttpd-mod-auth、lighttpd-mod-authn_file、
+lighttpd-mod-alias、lighttpd-mod-accesslog 以及依赖库全部列出
+（libpcre 若板子已有可跳过）。
 
 ---
 
