@@ -54,7 +54,7 @@ grep -E 'CONFIG_PACKAGE_lighttpd|CONFIG_PACKAGE_libsqlite3|CONFIG_PACKAGE_libuui
 # 应看到 =y
 ```
 
-- [ ] **Step 3: 编译**
+- [x] **Step 3: 编译**（第一次编 1.4.54-1；后因 64KB PUT 上游 bug 打补丁并 bump 到 1.4.54-2，重新编译）
 
 ```bash
 make package/feeds/packages/lighttpd/compile V=s
@@ -163,7 +163,7 @@ ls -ld /mnt/sd/backup/android/DCIM /mnt/sd/backup/android/Files
 - 消费：Task 2 的模块、Task 3 的密码文件与目录
 - 产出：监听 `10.10.10.1:8080` 与 `192.168.100.1:8080` 的 WebDAV 服务
 
-- [ ] **Step 1: 写入配置**
+- [x] **Step 1: 写入配置**
 
 ```bash
 cat > /etc/lighttpd/lighttpd.conf <<'EOF'
@@ -212,7 +212,7 @@ include "/etc/lighttpd/mime.conf"
 EOF
 ```
 
-- [ ] **Step 2: 配置语法校验**
+- [x] **Step 2: 配置语法校验**
 
 ```bash
 lighttpd -tt -f /etc/lighttpd/lighttpd.conf
@@ -231,7 +231,7 @@ lighttpd -tt -f /etc/lighttpd/lighttpd.conf
 - 消费：Task 4 的配置
 - 产出：可用的 `http://10.10.10.1:8080/dav/` 与 `http://192.168.100.1:8080/dav/`
 
-- [ ] **Step 1: 启动并设开机自启**
+- [x] **Step 1: 启动并设开机自启**
 
 ```bash
 /etc/init.d/lighttpd enable
@@ -240,7 +240,7 @@ lighttpd -tt -f /etc/lighttpd/lighttpd.conf
 
 预期：无报错；`logread | grep lighttpd` 无 validation failed。
 
-- [ ] **Step 2: 检查监听地址**
+- [x] **Step 2: 检查监听地址**
 
 ```bash
 netstat -tlnp | grep 8080
@@ -248,7 +248,7 @@ netstat -tlnp | grep 8080
 
 预期：包含 `10.10.10.1:8080` 与 `192.168.100.1:8080`，**不包含** WAN 地址。
 
-- [ ] **Step 3: 未认证访问应 401**
+- [x] **Step 3: 未认证访问应 401**（192.168.100.1:8080 与 10.10.10.1:8080 双地址均验证）
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://10.10.10.1:8080/dav/
@@ -256,7 +256,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://10.10.10.1:8080/dav/
 
 预期：401。
 
-- [ ] **Step 4: 认证后建目录、传文件、下载比对**
+- [x] **Step 4: 认证后建目录、传文件、下载比对**（40KB 小文件 + 200KB 大文件，md5 一致；板子无 curl，验收从 Windows curl 打 192.168.100.1:8080）
 
 ```bash
 curl -u backup:'Backup@2026' -X MKCOL http://10.10.10.1:8080/dav/backup/test
@@ -268,7 +268,7 @@ md5sum /tmp/cloud-test.txt /tmp/cloud-dl.txt
 
 预期：MKCOL 返回 201；两次 md5 一致；文件落在 `/mnt/sd/backup/test/cloud-test.txt`。
 
-- [ ] **Step 5: 清理测试目录并确认日志**
+- [x] **Step 5: 清理测试目录并确认日志**（PROPFIND 需带 Depth: 0/1 → 207；不带 Depth 时 1.4.54 按 RFC 返回 403 propfind-finite-depth，属正确行为，FolderSync 会带 Depth）
 
 ```bash
 curl -u backup:'Backup@2026' -X DELETE http://10.10.10.1:8080/dav/backup/test

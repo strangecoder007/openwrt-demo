@@ -1,0 +1,32 @@
+--- a/src/mod_webdav.c
++++ b/src/mod_webdav.c
+@@ -4129,21 +4129,27 @@ mod_webdav_write_single_file_chunk (connection* const con, chunkqueue* const cq)
+ static int
+ mod_webdav_write_single_file_chunk (connection* const con, chunkqueue* const cq)
+ {
+     /* cq might have mem chunks after initial tempfile chunk
+      * due to chunkqueue_steal() if request body is small */
+     /*assert(cq->first->type == FILE_CHUNK);*/
+     /*assert(cq->first->next != NULL);*/
+     chunk * const c = cq->first;
+     cq->first = c->next;
++    const off_t len = chunkqueue_length(cq);
++    const off_t bytes_out = cq->bytes_out;
+     if (mod_webdav_write_cq(con, cq, c->file.fd)) {
+         /*assert(cq->first == NULL);*/
++        /* chunks merged; chunkqueue length did not change,
++         * so restore cq->bytes_out instead of chunkqueue_file_update() */
++        cq->bytes_out = bytes_out;
++        c->file.length = len;
+         c->next = NULL;
+         cq->first = cq->last = c;
+         return 1;
+     }
+     else {
+         /*assert(cq->first != NULL);*/
+         c->next = cq->first;
+         cq->first = c;
+         return 0;
+     }
+ }
+ #endif
