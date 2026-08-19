@@ -9,6 +9,13 @@
 > 部署需安装 `dav-bridge` 与 `lighttpd-mod-cgi` 两个 ipk，并把
 > `cloud-drive/lighttpd.conf` 应用到板子 `/etc/lighttpd/`。
 
+## 已踩的坑
+
+- `wx.getFileSystemManager().readFile` 传 `encoding: 'binary'` 返回的是**字符串**，
+  `wx.request` PUT 会按 UTF-8 编码发送 → 所有 >127 的字节被膨胀成两字节，
+  图片/视频落盘即损坏（文件头 `FF D8` 变成 `C3 BF C3 98`）。必须**不传 encoding**，
+  让 `readFile` 返回 ArrayBuffer，`wx.request` 才会原样发送字节。
+
 ## 打开方式
 
 微信开发者工具 → 导入项目 → 选择本目录。AppID 已配置为 `wx15b3015f0705ec62`；如需换号，修改 `project.config.json` 的 `appid` 并把 `urlCheck` 改回 `true`。

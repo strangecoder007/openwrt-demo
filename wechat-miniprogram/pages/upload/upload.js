@@ -24,7 +24,10 @@ Page({
       const prepared = [];
       for (const f of list) {
         const buf = await new Promise((resolve, reject) => {
-          fs.readFile({ filePath: f.path, encoding: 'binary', success: (r) => resolve(r.data), fail: reject });
+          // 不传 encoding：readFile 返回 ArrayBuffer，wx.request PUT 才能原样
+          // 发送字节；传 'binary' 会得到字符串，发送时按 UTF-8 编码，>127 的
+          // 字节全被膨胀成两个字节，图片/视频必然损坏。
+          fs.readFile({ filePath: f.path, success: (r) => resolve(r.data), fail: reject });
         });
         const ext = (f.path.split('.').pop() || '').toLowerCase() || (f.type === 'video' ? 'mp4' : 'jpg');
         const name = uploader.makeFileName(f.type, f.time, ext);
