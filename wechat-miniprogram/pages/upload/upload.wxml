@@ -1,1 +1,7 @@
-<view>占位</view>
+<button class="btn-primary" bindtap="pickImage" disabled="{{uploading}}">选照片（最多 9 张）</button>
+<button class="btn-primary" bindtap="pickVideo" disabled="{{uploading}}">选视频（1 个，≤50MB）</button>
+<view class="card">
+  <view wx:for="{{files}}" wx:key="index">{{index + 1}}. {{item.type}}（{{item.size}}B）</view>
+</view>
+<view wx:if="{{uploading}}" class="progress">进度：{{done}}/{{files.length}}　{{log}}</view>
+<button class="btn-primary" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>
