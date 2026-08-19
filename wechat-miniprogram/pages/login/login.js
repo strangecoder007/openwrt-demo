@@ -7,11 +7,13 @@ Page({
     baseUrl: 'https://cy.gcaiyy.xyz:34443',
     user: 'backup',
     pass: '',
-    loading: false
+    loading: false,
+    version: ''
   },
   onLoad() {
     const s = getApp().getSession();
     if (s) this.setData({ baseUrl: s.baseUrl, user: s.user });
+    this.setData({ version: getApp().version || '' });
   },
   onInput(e) {
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value });

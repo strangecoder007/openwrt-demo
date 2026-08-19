@@ -2,7 +2,10 @@ const { getDav } = require('../../utils/session');
 const uploader = require('../../utils/uploader');
 
 Page({
-  data: { files: [], uploading: false, done: 0, total: 0, percent: 0, filePercent: 0, currentName: '' },
+  data: { files: [], uploading: false, done: 0, total: 0, percent: 0, filePercent: 0, currentName: '', version: '' },
+  onLoad() {
+    this.setData({ version: getApp().version || '' });
+  },
   pickImage() { this.pick(['image'], 9); },
   pickVideo() { this.pick(['video'], 1); },
   pick(mediaType, count) {
@@ -18,7 +21,9 @@ Page({
             size: t.size,
             sizeLabel: mb >= 1 ? mb.toFixed(1) + 'MB' : (t.size / 1024).toFixed(0) + 'KB',
             type: t.fileType,
-            time: Date.now()
+            time: Date.now(),
+            status: 'pending',
+            percent: 0
           };
         });
         this.setData({ files: this.data.files.concat(files), done: 0, percent: 0, filePercent: 0 });
@@ -35,7 +40,8 @@ Page({
   async startUpload() {
     const list = this.data.files;
     if (!list.length) { wx.showToast({ title: '先选择文件', icon: 'none' }); return; }
-    this.setData({ uploading: true, done: 0, total: list.length, percent: 0, filePercent: 0, currentName: '' });
+    const files = this.data.files.map((f) => Object.assign({}, f, { status: 'pending', percent: 0 }));
+    this.setData({ files, uploading: true, done: 0, total: list.length, percent: 0, filePercent: 0, currentName: '' });
     // 真实进度目标 + 平滑展示值：进度条保证会动，不会卡在 0 或显示 NaN/null
     let target = 0;
     let smooth = 0;
@@ -61,12 +67,15 @@ Page({
       await uploader.uploadFiles({
         dav,
         files: prepared,
-        onProgress: (done, total, percent, name) => {
+        onProgress: (done, total, percent, name, index) => {
           const pct = Number(percent);
           const safe = isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
           const next = Math.round(Math.min(100, ((done + safe / 100) / total) * 100));
           target = Math.max(target, next); // 只涨不跌，避免换文件时进度回退
-          this.setData({ done, total, filePercent: Math.round(safe), currentName: name || '' });
+          const nextFiles = this.data.files.map((x, i) =>
+            i === index ? Object.assign({}, x, { status: safe >= 100 ? 'done' : 'uploading', percent: Math.round(safe) }) : x
+          );
+          this.setData({ done, total, files: nextFiles, filePercent: Math.round(safe), currentName: name || '' });
         }
       });
       target = 100;

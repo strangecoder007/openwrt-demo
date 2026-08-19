@@ -12,6 +12,11 @@
         <view class="file-name">{{index + 1}}. {{item.type === 'video' ? '视频' : '图片'}}</view>
         <view class="file-size">{{item.sizeLabel}}</view>
       </view>
+      <text class="file-status {{item.status}}">
+        <block wx:if="{{item.status === 'done'}}">✓ 完成</block>
+        <block wx:elif="{{item.status === 'uploading'}}">上传中 {{item.percent}}%</block>
+        <block wx:else>待上传</block>
+      </text>
       <text class="file-remove" bindtap="removeFile" data-index="{{index}}">×</text>
     </view>
   </view>
@@ -26,4 +31,5 @@
   </view>
 
   <button class="btn-primary big" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>
+  <view class="version">云盘 {{version}}</view>
 </view>

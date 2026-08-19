@@ -7,9 +7,14 @@
 .file-info { flex: 1; }
 .file-name { font-size: 26rpx; color: #1f2329; }
 .file-size { font-size: 22rpx; color: #9aa0a6; margin-top: 4rpx; }
+.file-status { font-size: 22rpx; margin-right: 16rpx; }
+.file-status.pending { color: #9aa0a6; }
+.file-status.uploading { color: #07c160; }
+.file-status.done { color: #07c160; }
 .file-remove { font-size: 44rpx; color: #c4c9cd; padding: 0 8rpx; }
 .progress-card { margin-top: 8rpx; }
 .progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16rpx; }
 .progress-label { font-size: 26rpx; color: #4e5969; }
 .progress-pct { font-size: 40rpx; font-weight: 700; color: #07c160; }
 .progress-sub { font-size: 22rpx; color: #9aa0a6; margin-top: 14rpx; word-break: break-all; }
+.version { text-align: center; font-size: 22rpx; color: #c4c9cd; margin-top: 40rpx; }

@@ -1,4 +1,21 @@
-.grid { display: flex; flex-wrap: wrap; padding: 8rpx 0 140rpx; }
+.day-section { margin-bottom: 32rpx; }
+.day-header {
+  display: flex;
+  align-items: center;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #4e5969;
+  margin: 8rpx 8rpx 16rpx;
+}
+.day-header::before {
+  content: '';
+  width: 8rpx;
+  height: 26rpx;
+  border-radius: 4rpx;
+  background: #07c160;
+  margin-right: 12rpx;
+}
+.grid { display: flex; flex-wrap: wrap; padding: 0 0 16rpx; }
 .cell {
   position: relative;
   width: 31.5%;

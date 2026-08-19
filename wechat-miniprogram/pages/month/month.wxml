@@ -1,20 +1,23 @@
 <view class="page">
-  <view class="grid">
-    <view wx:for="{{files}}" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{item.path}}" bindtap="onTapFile" hover-class="press">
-    <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="thumb" />
-    <view wx:else class="thumb placeholder {{item.type === 'video' ? 'video' : ''}}">
-      <block wx:if="{{item.type === 'video'}}">
-        <view class="video-play">▶</view>
-        <text class="video-name">{{item.name}}</text>
-      </block>
-      <block wx:else>{{item.status === 'error' ? '加载失败' : '加载中…'}}</block>
+  <view wx:for="{{days}}" wx:key="key" class="day-section">
+    <view class="day-header">{{item.label}} · {{item.files.length}} 个</view>
+    <view class="grid">
+      <view wx:for="{{item.files}}" wx:for-item="file" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{file.path}}" bindtap="onTapFile" hover-class="press">
+        <image wx:if="{{file.thumb}}" src="{{file.thumb}}" mode="aspectFill" class="thumb" />
+        <view wx:else class="thumb placeholder {{file.type === 'video' ? 'video' : ''}}">
+          <block wx:if="{{file.type === 'video'}}">
+            <view class="video-play">▶</view>
+            <text class="video-name">{{file.name}}</text>
+          </block>
+          <block wx:else>{{file.status === 'error' ? '加载失败' : '加载中…'}}</block>
+        </view>
+        <view wx:if="{{file.type === 'video' && file.thumb}}" class="video-badge">▶</view>
+        <view wx:if="{{editing}}" class="check {{selected[file.path] ? 'checked' : ''}}">✓</view>
+      </view>
     </view>
-    <view wx:if="{{item.type === 'video' && item.thumb}}" class="video-badge">▶</view>
-    <view wx:if="{{editing}}" class="check {{selected[item.path] ? 'checked' : ''}}">✓</view>
-  </view>
   </view>
 
-  <view wx:if="{{!files.length}}" class="empty">
+  <view wx:if="{{!days.length}}" class="empty">
     <view class="empty-icon">📂</view>
     <view class="empty-text">这个月还没有文件</view>
   </view>
@@ -25,7 +28,7 @@
     <button class="btn-danger" disabled="{{selectedCount === 0}}" bindtap="onDeleteSelected">删除({{selectedCount}})</button>
     <button class="btn-ghost" bindtap="onToggleEdit">完成</button>
   </view>
-  <button wx:if="{{files.length && !editing}}" class="btn-primary edit-fab" bindtap="onToggleEdit">编辑</button>
+  <button wx:if="{{days.length && !editing}}" class="btn-primary edit-fab" bindtap="onToggleEdit">编辑</button>
 </view>
 
 <view wx:if="{{videoSrc}}" class="video-overlay" bindtap="closeVideo">

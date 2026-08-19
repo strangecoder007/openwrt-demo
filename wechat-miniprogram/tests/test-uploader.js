@@ -65,7 +65,7 @@ async function testUploadFiles() {
     { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' },
     { name: 'v.mp4', type: 'video', size: 1024, time: new Date(2026, 7, 19).getTime(), tempFilePath: 'wxfile://v.mp4', thumbTempFilePath: 'wxfile://v_cover.jpg' }
   ];
-  await uploadFiles({ dav, files, onProgress: (done, total, pct) => progress.push(done + '/' + total + '@' + pct) });
+  await uploadFiles({ dav, files, onProgress: (done, total, pct, name, idx) => progress.push(done + '/' + total + '@' + pct + '#' + idx) });
   assert.deepStrictEqual(log, [
     'mkcol:/dav/backup/android/DCIM/2026-08',
     'upload:/dav/backup/android/DCIM/2026-08/a.jpg#wxfile://a.jpg',
@@ -73,7 +73,7 @@ async function testUploadFiles() {
     'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4',
     'upload:/dav/backup/android/DCIM/2026-08/v.thumb.jpg#wxfile://v_cover.jpg'
   ]);
-  assert.deepStrictEqual(progress, ['0/2@50', '1/2@100', '1/2@50', '2/2@100']);
+  assert.deepStrictEqual(progress, ['0/2@50#0', '1/2@100#0', '1/2@50#1', '2/2@100#1']);
 
   const big = { name: 'b.mp4', type: 'video', size: MAX_VIDEO_BYTES + 1, time: Date.now(), tempFilePath: 'wxfile://b.mp4' };
   let err = null;

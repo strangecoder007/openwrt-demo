@@ -75,7 +75,7 @@ async function uploadFiles({ dav, files, onProgress }) {
     await dav.mkcol('/dav/backup/android/DCIM/' + dir);
     const path = await uniquePath(dav, '/dav/backup/android/DCIM/' + dir, f.name);
     await dav.upload(path, f.tempFilePath, (percent) => {
-      if (onProgress) onProgress(done, total, percent, f.name);
+      if (onProgress) onProgress(done, total, percent, f.name, done);
     });
     // 图片顺带传一张压缩缩略图，月视图就不用下载原图
     if (f.type === 'image') {
@@ -88,7 +88,7 @@ async function uploadFiles({ dav, files, onProgress }) {
       try { await dav.upload(thumbPathFor(path), f.thumbTempFilePath); } catch (e) { /* 封面失败不影响原视频 */ }
     }
     done += 1;
-    if (onProgress) onProgress(done, total, 100, f.name);
+    if (onProgress) onProgress(done, total, 100, f.name, done - 1);
   }
   return total;
 }
