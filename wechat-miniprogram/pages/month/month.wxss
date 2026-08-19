@@ -40,6 +40,13 @@
   box-sizing: border-box;
 }
 .thumb.placeholder.video { color: #07c160; }
+.err-text {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-all;
+}
 .video-badge {
   position: absolute;
   left: 50%;

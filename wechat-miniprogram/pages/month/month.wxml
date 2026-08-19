@@ -9,7 +9,7 @@
             <view class="video-play">▶</view>
             <text class="video-name">{{file.name}}</text>
           </block>
-          <block wx:else>{{file.status === 'error' ? '加载失败' : '加载中…'}}</block>
+          <view wx:else class="err-text">{{file.status === 'error' ? (file.error || '加载失败') : '加载中…'}}</view>
         </view>
         <view wx:if="{{file.type === 'video' && file.thumb}}" class="video-badge">▶</view>
         <view wx:if="{{editing}}" class="check {{selected[file.path] ? 'checked' : ''}}">✓</view>

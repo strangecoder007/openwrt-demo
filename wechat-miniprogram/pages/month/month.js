@@ -85,7 +85,7 @@ Page({
         url: s.baseUrl.replace(/\/+$/, '') + path,
         header: { Authorization: authHeader() },
         success: resolve,
-        fail: reject
+        fail: (err) => reject(new Error((err && err.errMsg) || 'download fail'))
       });
     });
   },
@@ -101,7 +101,7 @@ Page({
         const res = await this.download(derivedPath);
         if (res.statusCode === 200) return thumbCache.put(ck, res.tempFilePath);
       }
-    } catch (e) { /* 继续走原图 */ }
+    } catch (e) { console.warn('[month] derived miss', derivedPath, e); /* 继续走原图 */ }
     if (f.type === 'video') return null;
     const full = await this.download(f.path);
     if (full.statusCode !== 200) return null;
@@ -126,11 +126,12 @@ Page({
       while (i < files.length) {
         const f = files[i++];
         let thumb = '';
-        try { thumb = (await this.fetchThumb(f, dav)) || ''; } catch (e) { thumb = ''; }
+        let err = '';
+        try { thumb = (await this.fetchThumb(f, dav)) || ''; } catch (e) { thumb = ''; err = (e && e.message) || '加载失败'; console.warn('[month] thumb fail', f.path, e); }
         this.setData({
           days: this.data.days.map((day) => ({
             ...day,
-            files: day.files.map((x) => x.path === f.path ? Object.assign({}, x, { thumb, status: thumb ? 'ok' : 'error' }) : x)
+            files: day.files.map((x) => x.path === f.path ? Object.assign({}, x, { thumb, status: thumb ? 'ok' : 'error', error: err }) : x)
           }))
         });
       }
@@ -195,7 +196,7 @@ Page({
         try {
           const local = await this.fetchPreview(images[cur], dav);
           if (local) urls[cur] = local;
-        } catch (e) { /* 单张失败跳过，其余仍可预览 */ }
+        } catch (e) { console.warn('[month] preview fail', images[cur].path, e); /* 单张失败跳过，其余仍可预览 */ }
         done += 1;
         wx.showLoading({ title: '加载预览 ' + done + '/' + images.length });
       }
