@@ -50,12 +50,15 @@
 - lighttpd **不再监听 80**；公网 80 防火墙规则（`Allow-HTTP-WAN`）已删除；
 - 公网 HTTPS 入口只剩 **34443**；lighttpd 监听 443 / 8080 / 8443(WG) / 34443。
 
-## 证书续期自动化（Windows 计划任务）
+## 证书续期自动化（2026-08-19 起迁到板子）
 
-- 脚本：本目录 `renew-cloud-cert.sh` → 复制到 `C:\Users\Administrator\scripts\`；
-- 计划任务：`CloudCertRenew`（SYSTEM 账户，每天 03:30 + 开机，`StartWhenAvailable`
-  错过后补跑）；
-- 逻辑：`acme.sh --cron`（DNS-01，凭据在 `~/.acme.sh/account.conf`，经本机
-  `127.0.0.1:7890` 代理访问 Let's Encrypt）→ `fullchain.cer` 当天更新过才合并
-  key+fullchain 为 `server.pem` 推板子并 `lighttpd restart`；
-- 日志：`C:\Users\Administrator\.acme.sh\cron.log`；下次续期窗口 2026-10-18。
+- **板子侧（现行）**：`/root/.acme.sh`（DNS-01，阿里云凭据在
+  `account.conf`，不入库）；板子 cron 每天 03:00 跑
+  `acme.sh --cron`，日志 `/root/.acme.sh/cron.log`；
+- 安装钩子：fullchain/key 直接部署到 `/etc/lighttpd/`，reloadcmd 合并
+  `server.pem` 并 `lighttpd restart`（下次续期窗口 2026-10-18）；
+- **前置条件（已装）**：GNU wget 1.20.3（busybox wget 不认 `--header`，acme.sh
+  会失败）+ libustream-openssl/ca-bundle/openssl-util；
+- **回退**：Windows 计划任务 `CloudCertRenew` 已停用但保留；脚本
+  `renew-cloud-cert.sh`（`C:\Users\Administrator\scripts\`）重启用
+  `Enable-ScheduledTask -TaskName CloudCertRenew`。
