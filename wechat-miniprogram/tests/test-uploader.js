@@ -1,7 +1,8 @@
 const assert = require('assert');
 const {
   MAX_VIDEO_BYTES, monthDir, contentTypeFor, thumbPathFor,
-  isThumbPath, makeImageThumb, uniquePath, uploadFiles, makeFileName
+  previewPathFor, isThumbPath, isPreviewPath, makeImageThumb,
+  makeImagePreview, uniquePath, uploadFiles, makeFileName
 } = require('../utils/uploader');
 
 function testMonthDir() {
@@ -37,9 +38,25 @@ function testThumbPath() {
   assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.jpg'), false);
 }
 
-async function testNoThumbWithoutWx() {
-  // Node 环境没有 wx.compressImage，缩略图生成返回 null，不影响原图上传
+function testPreviewPath() {
+  assert.strictEqual(
+    previewPathFor('/dav/backup/android/DCIM/2026-08/a.jpg'),
+    '/dav/backup/android/DCIM/2026-08/a.preview.jpg'
+  );
+  assert.strictEqual(
+    previewPathFor('/dav/backup/android/DCIM/2026-08/a'),
+    '/dav/backup/android/DCIM/2026-08/a.preview.jpg'
+  );
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/a.preview.jpg'), true);
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/a.thumb.jpg'), false);
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/a.jpg'), false);
+  assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.preview.jpg'), false);
+}
+
+async function testNoDerivedWithoutWx() {
+  // Node 环境没有 wx.compressImage，缩略图/预览图生成返回 null，不影响原图上传
   assert.strictEqual(await makeImageThumb('wxfile://a.jpg'), null);
+  assert.strictEqual(await makeImagePreview('wxfile://a.jpg'), null);
 }
 
 function testUniquePath() {
@@ -81,8 +98,32 @@ async function testUploadFiles() {
   assert.strictEqual(err.code, 'TOO_LARGE');
 }
 
-testMonthDir(); testContentType(); testMakeFileName(); testThumbPath();
+async function testUploadFilesWithDerived() {
+  // 图片上传后应依次回传缩略图与预览图（注入压缩函数，验证路径约定）
+  const log = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => { log.push('upload:' + p + '#' + fp); }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' }
+  ];
+  await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async (fp) => 'thumb-' + fp,
+    makePreview: async (fp) => 'preview-' + fp
+  });
+  assert.deepStrictEqual(log, [
+    'upload:/dav/backup/android/DCIM/2026-08/a.jpg#wxfile://a.jpg',
+    'upload:/dav/backup/android/DCIM/2026-08/a.thumb.jpg#thumb-wxfile://a.jpg',
+    'upload:/dav/backup/android/DCIM/2026-08/a.preview.jpg#preview-wxfile://a.jpg'
+  ]);
+}
+
+testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPreviewPath();
 testUniquePath()
-  .then(testNoThumbWithoutWx)
+  .then(testNoDerivedWithoutWx)
   .then(testUploadFiles)
+  .then(testUploadFilesWithDerived)
   .then(() => console.log('test-uploader OK'));

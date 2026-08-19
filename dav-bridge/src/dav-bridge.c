@@ -117,16 +117,22 @@ static bool has_dotdot(const char *p)
 	return false;
 }
 
-/* 缩略图（.thumb.jpg 结尾）不参与目录列举，避免被当作普通文件/再生成链条 */
-static bool is_thumb_name(const char *name)
+/* 派生图（.thumb.jpg / .preview.jpg 结尾）不参与目录列举，
+ * 避免被当作普通文件/再生成链条 */
+static bool is_derived_name(const char *name)
 {
-	static const char suf[] = ".thumb.jpg";
+	static const char *const suffixes[] = { ".thumb.jpg", ".preview.jpg" };
 	size_t len = strlen(name);
-	size_t slen = sizeof(suf) - 1;
+	size_t n = sizeof(suffixes) / sizeof(suffixes[0]);
+	size_t i;
+	size_t slen;
 
-	if (len < slen)
-		return false;
-	return strcasecmp(name + len - slen, suf) == 0;
+	for (i = 0; i < n; i++) {
+		slen = strlen(suffixes[i]);
+		if (len >= slen && strcasecmp(name + len - slen, suffixes[i]) == 0)
+			return true;
+	}
+	return false;
 }
 
 /*
@@ -374,7 +380,7 @@ static int op_ls(const char *path, int depth)
 			if (strcmp(e->d_name, ".") == 0 ||
 			    strcmp(e->d_name, "..") == 0)
 				continue;
-			if (is_thumb_name(e->d_name))
+			if (is_derived_name(e->d_name))
 				continue;
 			if (snprintf(child, sizeof(child), "%s/%s", fs,
 				     e->d_name) >= (int)sizeof(child))

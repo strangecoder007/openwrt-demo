@@ -30,9 +30,19 @@ function thumbPathFor(path) {
   return path + '.thumb.jpg';
 }
 
-// 缩略图（含历史 bug 产生的 .thumb.thumb*.jpg 链）不参与列表与计数
+// 预览图约定：同目录同名，扩展名换成 .preview.jpg（1280px，供全屏预览）
+function previewPathFor(path) {
+  if (/\.[^./]+$/.test(path)) return path.replace(/\.[^./]+$/, '.preview.jpg');
+  return path + '.preview.jpg';
+}
+
+// 缩略图/预览图（含历史 bug 产生的 .thumb.thumb*.jpg 链）不参与列表与计数
 function isThumbPath(path) {
   return /\.thumb\.jpg$/i.test(path);
+}
+
+function isPreviewPath(path) {
+  return /\.preview\.jpg$/i.test(path);
 }
 
 // 本地压缩生成缩略图（上传时/首次浏览时调用）；不支持时返回 null
@@ -43,6 +53,20 @@ function makeImageThumb(src) {
       src,
       quality: 60,
       compressedWidth: 480,
+      success: (res) => resolve(res.tempFilePath),
+      fail: () => resolve(null)
+    });
+  });
+}
+
+// 本地压缩生成预览图（1280px，比原图小一个量级，全屏观感接近原图）
+function makeImagePreview(src) {
+  if (typeof wx === 'undefined' || !wx.compressImage) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    wx.compressImage({
+      src,
+      quality: 75,
+      compressedWidth: 1280,
       success: (res) => resolve(res.tempFilePath),
       fail: () => resolve(null)
     });
@@ -63,7 +87,7 @@ async function uniquePath(dav, dirPath, name) {
   }
 }
 
-async function uploadFiles({ dav, files, onProgress }) {
+async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview }) {
   const total = files.length;
   let done = 0;
   for (let i = 0; i < total; i++) {
@@ -79,9 +103,14 @@ async function uploadFiles({ dav, files, onProgress }) {
     });
     // 图片顺带传一张压缩缩略图，月视图就不用下载原图
     if (f.type === 'image') {
-      const thumb = await makeImageThumb(f.tempFilePath);
+      const thumb = await makeThumb(f.tempFilePath);
       if (thumb) {
         try { await dav.upload(thumbPathFor(path), thumb); } catch (e) { /* 缩略图失败不影响原图 */ }
+      }
+      // 再传一张 1280px 预览图，全屏预览不用下载原图
+      const preview = await makePreview(f.tempFilePath);
+      if (preview) {
+        try { await dav.upload(previewPathFor(path), preview); } catch (e) { /* 预览图失败不影响原图 */ }
       }
     } else if (f.thumbTempFilePath) {
       // 视频用 chooseMedia 自带的封面做缩略图（手机端无法截帧）
@@ -95,5 +124,6 @@ async function uploadFiles({ dav, files, onProgress }) {
 
 module.exports = {
   MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor,
-  thumbPathFor, isThumbPath, makeImageThumb, uniquePath, uploadFiles
+  thumbPathFor, previewPathFor, isThumbPath, isPreviewPath,
+  makeImageThumb, makeImagePreview, uniquePath, uploadFiles
 };

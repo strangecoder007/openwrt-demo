@@ -1,9 +1,9 @@
 const { getDav, authHeader } = require('../../utils/session');
-const { thumbPathFor, isThumbPath, makeImageThumb } = require('../../utils/uploader');
+const { thumbPathFor, previewPathFor, isThumbPath, isPreviewPath, makeImageThumb, makeImagePreview } = require('../../utils/uploader');
 const { cacheKeyForPath, createThumbCache, createWxFs } = require('../../utils/thumbcache');
 
-// 缩略图本地持久缓存（命中后零网络请求；超限按 LRU 淘汰）
-const thumbCache = createThumbCache(createWxFs(), wx.env.USER_DATA_PATH + '/thumbcache');
+// 缩略图/预览图共用本地持久缓存（命中后零网络请求；超限按 LRU 淘汰）
+const thumbCache = createThumbCache(createWxFs(), wx.env.USER_DATA_PATH + '/thumbcache', { maxBytes: 100 * 1024 * 1024, maxFiles: 500 });
 
 // 从文件名里的 YYYYMMDD 或服务器 lastModified 提取日期；都没有则归"未分类"
 function dayInfo(name, lastModified) {
@@ -41,7 +41,7 @@ Page({
       const dav = getDav();
       const items = await dav.propfind(this.data.dirPath, 1) || [];
       const files = items
-        .filter((f) => !f.isDir && !isThumbPath(f.href))
+        .filter((f) => !f.isDir && !isThumbPath(f.href) && !isPreviewPath(f.href))
         .map((f) => {
           const name = f.href.split('/').filter(Boolean).pop();
           const info = dayInfo(name, f.lastModified);
@@ -88,30 +88,34 @@ Page({
       });
     });
   },
-  // 优先取 .thumb.jpg；图片老文件没有缩略图时下载原图、压缩一张回传；视频无封面保持占位
-  async fetchThumb(f, dav) {
-    const tp = thumbPathFor(f.path);
-    const ck = cacheKeyForPath(tp);
+  // 派生图通用逻辑：优先取服务端缩略图/预览图；老文件没有时下载原图、
+  // 压缩一张回传并缓存；视频无封面保持占位
+  async fetchDerived(f, dav, derivedPath, makeFn) {
+    const ck = cacheKeyForPath(derivedPath);
     const cached = thumbCache.get(ck);
     if (cached) return cached;
     try {
-      const found = await dav.propfind(tp, 0);
+      const found = await dav.propfind(derivedPath, 0);
       if (found && found.length) {
-        const res = await this.download(tp);
-        if (res.statusCode === 200) {
-          return thumbCache.put(ck, res.tempFilePath);
-        }
+        const res = await this.download(derivedPath);
+        if (res.statusCode === 200) return thumbCache.put(ck, res.tempFilePath);
       }
     } catch (e) { /* 继续走原图 */ }
     if (f.type === 'video') return null;
     const full = await this.download(f.path);
     if (full.statusCode !== 200) return null;
-    const thumb = await makeImageThumb(full.tempFilePath);
-    if (thumb) {
-      try { await dav.upload(tp, thumb); } catch (e) { /* 不阻塞 */ }
-      return thumbCache.put(ck, thumb);
+    const derived = await makeFn(full.tempFilePath);
+    if (derived) {
+      try { await dav.upload(derivedPath, derived); } catch (e) { /* 不阻塞 */ }
+      return thumbCache.put(ck, derived);
     }
     return full.tempFilePath;
+  },
+  fetchThumb(f, dav) {
+    return this.fetchDerived(f, dav, thumbPathFor(f.path), makeImageThumb);
+  },
+  fetchPreview(f, dav) {
+    return this.fetchDerived(f, dav, previewPathFor(f.path), makeImagePreview);
   },
   async loadThumbs(files) {
     const dav = getDav();
@@ -171,7 +175,8 @@ Page({
       wx.showToast({ title: '下载失败', icon: 'none' });
     });
   },
-  // 点图片 → 下载“当天”所有原图（并发 3）→ wx.previewImage 可左右滑动
+  // 点图片 → 下载“当天”所有 1280px 预览图（并发 3，无预览图的老图首次
+  // 下载原图压缩回传）→ wx.previewImage 可左右滑动
   async previewDay(f) {
     const day = this.data.days.find((d) => d.files.some((x) => x.path === f.path));
     if (!day) return;
@@ -179,6 +184,7 @@ Page({
     const idx = images.indexOf(f);
     const urls = new Array(images.length);
     let done = 0;
+    const dav = getDav();
     wx.showLoading({ title: '加载预览 0/' + images.length });
     let i = 0;
     const CONC = 3;
@@ -186,8 +192,8 @@ Page({
       while (i < images.length) {
         const cur = i++;
         try {
-          const res = await this.download(images[cur].path);
-          if (res.statusCode === 200) urls[cur] = res.tempFilePath;
+          const local = await this.fetchPreview(images[cur], dav);
+          if (local) urls[cur] = local;
         } catch (e) { /* 单张失败跳过，其余仍可预览 */ }
         done += 1;
         wx.showLoading({ title: '加载预览 ' + done + '/' + images.length });
@@ -211,9 +217,11 @@ Page({
       wx.showLoading({ title: '删除中' });
       for (const p of paths) {
         await dav.del(p);
-        // 原图删掉时服务端缩略图一起删，本地缓存同步清
+        // 原图删掉时服务端缩略图/预览图一起删，本地缓存同步清
         try { await dav.del(thumbPathFor(p)); } catch (e) { /* 没有缩略图或已删 */ }
+        try { await dav.del(previewPathFor(p)); } catch (e) { /* 没有预览图或已删 */ }
         thumbCache.remove(cacheKeyForPath(thumbPathFor(p)));
+        thumbCache.remove(cacheKeyForPath(previewPathFor(p)));
       }
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
