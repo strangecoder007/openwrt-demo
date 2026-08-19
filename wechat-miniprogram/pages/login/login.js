@@ -4,7 +4,7 @@ const { wxRequest } = require('../../utils/wxreq');
 
 Page({
   data: {
-    baseUrl: 'https://cy.gcaiyy.xyz',
+    baseUrl: 'https://cy.gcaiyy.xyz:34443',
     user: 'backup',
     pass: '',
     loading: false

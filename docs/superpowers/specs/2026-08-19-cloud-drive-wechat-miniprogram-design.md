@@ -9,6 +9,11 @@
 > 返回 JSON，Basic 认证由 lighttpd mod_auth 完成（与 WebDAV 同账号）；
 > `PROPFIND`/`MKCOL` 语义由该桥承担，`PUT`/`GET`/`DELETE` 仍直连
 > lighttpd mod_webdav。涉及第 3、5、6、9 节的相关描述以本修订为准。
+>
+> **修订（2026-08-19 二改）**：公网入口端口定为 **34443**（光猫拦截 80/443 等
+> 小端口）。微信官方确认合法域名可配置端口（如 `https://域名:8080`），配置后
+> 请求必须严格带该端口。小程序后台 request/downloadFile 合法域名、登录页默认
+> baseUrl、防火墙、lighttpd socket 均使用 `https://cy.gcaiyy.xyz:34443`。
 
 ## 1. 背景与目标
 
@@ -83,7 +88,7 @@ alias/auth 配置。
 - **`wx.request` 方法白名单不含 `PROPFIND`/`MKCOL`**（真机 `network argv error`）→
   文件列表/建目录改走板子 `dav-bridge` CGI（GET + JSON）；`utils/xml.js` 的
   PROPFIND 解析保留为备用实现；
-- 合法域名：小程序后台需把 `https://cy.gcaiyy.xyz` 配入 **request 合法域名**与 **downloadFile 合法域名**（两者分开配置）；域名已备案，正式/体验版均可使用；
+- 合法域名：小程序后台需把 `https://cy.gcaiyy.xyz:34443` 配入 **request 合法域名**与 **downloadFile 合法域名**（两者分开配置）；域名已备案，正式/体验版均可使用；**配置带端口后请求 URL 必须带该端口**（登录页默认值已带）；
 - 域名归属校验：按微信要求把校验文件放到 `https://cy.gcaiyy.xyz/` 根路径（前置任务处理）。
 
 ### 5.3 PROPFIND 响应解析

@@ -13,6 +13,13 @@
 > （返回 JSON，Basic 认证由 lighttpd mod_auth 完成，与 WebDAV 同账号）；
 > 上传/下载/删除仍直连 mod_webdav。“后端零代码改动”约束相应放宽为
 > “mod_webdav 不动，仅新增独立 CGI 桥”。
+>
+> **修订（2026-08-19 二改）**：公网入口端口最终定为 **34443**（用户实测光猫会
+> 拦截 80/443 等小端口；微信官方文档确认合法域名**支持配置端口**，配置后请求
+> URL 必须严格带该端口，因此登录页默认 baseUrl、后台 request/downloadFile
+> 合法域名、防火墙、lighttpd socket 均改为 `https://cy.gcaiyy.xyz:34443`）。
+> 后台保存合法域名未提示下载校验文件 = 该域名在本账号下已校验过（历史小程序
+> 复用），非异常。
 
 **Tech Stack:** 微信小程序原生（JS/WXML/WXSS）、lighttpd 1.4.54 mod_webdav/mod_openssl、acme.sh（Let's Encrypt）、Node（仅测试）、无 npm 依赖。
 
@@ -1329,6 +1336,10 @@ curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.c
 - [x] **Step 5: Commit 并推送 demo 仓库（controller，e926acb/b45df8a/49157c2）** ——
   dav-bridge 包目录、wechat-miniprogram（含此前漏提交的 utils/tests 与 AppID）、
   lighttpd.conf、docs。
+- [x] **Step 6: 端口改 34443（controller，734f280 后追加）** —— lighttpd 增加
+  0.0.0.0/[::]:34443 ssl socket，防火墙 wan 放行 34443（IPv4+IPv6），登录页默认
+  baseUrl 改为 `https://cy.gcaiyy.xyz:34443`；LAN 侧 HTTPS 34443 冒烟通过
+  （probe-ok / 桥 JSON / 401）。公网入向仍待手机流量实测。
 
 ## 二期（不在本计划）
 

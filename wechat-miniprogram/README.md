@@ -15,7 +15,9 @@
 
 ## 合法域名
 
-小程序后台 request/downloadFile 合法域名均配置 `https://cy.gcaiyy.xyz`。
+小程序后台 request/downloadFile 合法域名均配置 `https://cy.gcaiyy.xyz:34443`
+（光猫拦截 80/443 等小端口，微信合法域名支持配置端口；配置后请求 URL 必须
+严格带 `:34443`，登录页默认值已带）。
 
 ## 结构
 
