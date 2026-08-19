@@ -1,5 +1,5 @@
 const { getDav, authHeader } = require('../../utils/session');
-const { thumbPathFor, makeImageThumb } = require('../../utils/uploader');
+const { thumbPathFor, isThumbPath, makeImageThumb } = require('../../utils/uploader');
 
 Page({
   data: { dirPath: '', monthName: '', files: [], editing: false, selected: {}, selectedCount: 0, videoSrc: '', playingName: '' },
@@ -14,7 +14,7 @@ Page({
       const dav = getDav();
       const items = await dav.propfind(this.data.dirPath, 1) || [];
       const files = items
-        .filter((f) => !f.isDir)
+        .filter((f) => !f.isDir && !isThumbPath(f.href))
         .map((f) => {
           const name = f.href.split('/').filter(Boolean).pop();
           return {

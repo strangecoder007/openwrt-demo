@@ -30,6 +30,11 @@ function thumbPathFor(path) {
   return path + '.thumb.jpg';
 }
 
+// 缩略图（含历史 bug 产生的 .thumb.thumb*.jpg 链）不参与列表与计数
+function isThumbPath(path) {
+  return /\.thumb\.jpg$/i.test(path);
+}
+
 // 本地压缩生成缩略图（上传时/首次浏览时调用）；不支持时返回 null
 function makeImageThumb(src) {
   if (typeof wx === 'undefined' || !wx.compressImage) return Promise.resolve(null);
@@ -87,5 +92,5 @@ async function uploadFiles({ dav, files, onProgress }) {
 
 module.exports = {
   MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor,
-  thumbPathFor, makeImageThumb, uniquePath, uploadFiles
+  thumbPathFor, isThumbPath, makeImageThumb, uniquePath, uploadFiles
 };

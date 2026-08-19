@@ -1,7 +1,7 @@
 const assert = require('assert');
 const {
   MAX_VIDEO_BYTES, monthDir, contentTypeFor, thumbPathFor,
-  makeImageThumb, uniquePath, uploadFiles, makeFileName
+  isThumbPath, makeImageThumb, uniquePath, uploadFiles, makeFileName
 } = require('../utils/uploader');
 
 function testMonthDir() {
@@ -32,6 +32,9 @@ function testThumbPath() {
     thumbPathFor('/dav/backup/android/DCIM/2026-08/a'),
     '/dav/backup/android/DCIM/2026-08/a.thumb.jpg'
   );
+  assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.thumb.jpg'), true);
+  assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.thumb.thumb.jpg'), true);
+  assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.jpg'), false);
 }
 
 async function testNoThumbWithoutWx() {

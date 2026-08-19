@@ -1,4 +1,5 @@
 const { getDav } = require('../../utils/session');
+const { isThumbPath } = require('../../utils/uploader');
 
 Page({
   data: { months: [], loading: false },
@@ -18,7 +19,7 @@ Page({
         if (!it.isDir || it.href === root) continue;
         const name = it.href.split('/').filter(Boolean).pop();
         const files = await dav.propfind(it.href, 1) || [];
-        const count = files.filter((f) => !f.isDir).length;
+        const count = files.filter((f) => !f.isDir && !isThumbPath(f.href)).length;
         months.push({ name, count, path: it.href });
       }
       months.sort((a, b) => (a.name < b.name ? 1 : -1));
