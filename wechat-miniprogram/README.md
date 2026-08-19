@@ -43,8 +43,13 @@
 
 ## 下载与保存
 
-- 网格缩略图：下载 `.thumb.jpg` 临时文件（微信自动管理，不落相册）；
-- 点图片：下载原图临时文件 → `wx.previewImage` 全屏预览；
+- 网格缩略图：优先命中本地持久缓存（`USER_DATA_PATH/thumbcache/`，命中零网络
+  请求；上限 30MB/500 项，LRU 淘汰最旧）；未命中才下载服务端 `.thumb.jpg`
+  并写入缓存。老图首次浏览仍会下载原图压缩一张回传服务端，之后秒开。
+- 点图片：下载**当天**全部原图（并发 3，显示“加载预览 x/y”）→
+  `wx.previewImage` 全屏预览，**可左右滑动**；
 - 点视频：下载临时文件 → 播放；
+- 月视图支持下拉刷新（重新拉列表 + 缩略图，带防重入）；
 - 编辑模式多选 → “下载(n)”：把选中的原图/视频**保存到手机相册**
-  （`wx.saveImageToPhotosAlbum` / `wx.saveVideoToPhotosAlbum`，首次需授权相册权限）。
+  （`wx.saveImageToPhotosAlbum` / `wx.saveVideoToPhotosAlbum`，首次需授权相册权限）；
+  删除时服务端 `.thumb.jpg` 与本地缓存一并清除。

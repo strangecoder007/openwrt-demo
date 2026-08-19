@@ -1,5 +1,9 @@
 const { getDav, authHeader } = require('../../utils/session');
 const { thumbPathFor, isThumbPath, makeImageThumb } = require('../../utils/uploader');
+const { cacheKeyForPath, createThumbCache, createWxFs } = require('../../utils/thumbcache');
+
+// 缩略图本地持久缓存（命中后零网络请求；超限按 LRU 淘汰）
+const thumbCache = createThumbCache(createWxFs(), wx.env.USER_DATA_PATH + '/thumbcache');
 
 // 从文件名里的 YYYYMMDD 或服务器 lastModified 提取日期；都没有则归"未分类"
 function dayInfo(name, lastModified) {
@@ -31,6 +35,8 @@ Page({
   },
   onShow() { this.loadFiles(); },
   async loadFiles() {
+    if (this._loading) return;
+    this._loading = true;
     try {
       const dav = getDav();
       const items = await dav.propfind(this.data.dirPath, 1) || [];
@@ -54,10 +60,15 @@ Page({
         .sort((a, b) => (a.name < b.name ? 1 : -1));
       this.allFiles = files;
       this.setData({ days: this.groupByDay(files), selected: {}, selectedCount: 0 });
-      this.loadThumbs(files);
+      await this.loadThumbs(files);
     } catch (e) {
       wx.showToast({ title: e.message || '加载失败', icon: 'none' });
+    } finally {
+      this._loading = false;
     }
+  },
+  onPullDownRefresh() {
+    this.loadFiles().catch(() => {}).then(() => wx.stopPullDownRefresh());
   },
   groupByDay(files) {
     const groups = {};
@@ -80,11 +91,16 @@ Page({
   // 优先取 .thumb.jpg；图片老文件没有缩略图时下载原图、压缩一张回传；视频无封面保持占位
   async fetchThumb(f, dav) {
     const tp = thumbPathFor(f.path);
+    const ck = cacheKeyForPath(tp);
+    const cached = thumbCache.get(ck);
+    if (cached) return cached;
     try {
       const found = await dav.propfind(tp, 0);
       if (found && found.length) {
         const res = await this.download(tp);
-        if (res.statusCode === 200) return res.tempFilePath;
+        if (res.statusCode === 200) {
+          return thumbCache.put(ck, res.tempFilePath);
+        }
       }
     } catch (e) { /* 继续走原图 */ }
     if (f.type === 'video') return null;
@@ -93,7 +109,7 @@ Page({
     const thumb = await makeImageThumb(full.tempFilePath);
     if (thumb) {
       try { await dav.upload(tp, thumb); } catch (e) { /* 不阻塞 */ }
-      return thumb;
+      return thumbCache.put(ck, thumb);
     }
     return full.tempFilePath;
   },
@@ -142,15 +158,7 @@ Page({
     const f = this.findFile(path);
     if (!f) return;
     if (f.type === 'image') {
-      wx.showLoading({ title: '加载中' });
-      this.download(f.path).then((res) => {
-        wx.hideLoading();
-        if (res.statusCode !== 200) { wx.showToast({ title: '下载失败 ' + res.statusCode, icon: 'none' }); return; }
-        wx.previewImage({ urls: [res.tempFilePath] });
-      }).catch(() => {
-        wx.hideLoading();
-        wx.showToast({ title: '下载失败', icon: 'none' });
-      });
+      this.previewDay(f);
       return;
     }
     wx.showLoading({ title: '下载中' });
@@ -163,6 +171,34 @@ Page({
       wx.showToast({ title: '下载失败', icon: 'none' });
     });
   },
+  // 点图片 → 下载“当天”所有原图（并发 3）→ wx.previewImage 可左右滑动
+  async previewDay(f) {
+    const day = this.data.days.find((d) => d.files.some((x) => x.path === f.path));
+    if (!day) return;
+    const images = day.files.filter((x) => x.type === 'image');
+    const idx = images.indexOf(f);
+    const urls = new Array(images.length);
+    let done = 0;
+    wx.showLoading({ title: '加载预览 0/' + images.length });
+    let i = 0;
+    const CONC = 3;
+    const worker = async () => {
+      while (i < images.length) {
+        const cur = i++;
+        try {
+          const res = await this.download(images[cur].path);
+          if (res.statusCode === 200) urls[cur] = res.tempFilePath;
+        } catch (e) { /* 单张失败跳过，其余仍可预览 */ }
+        done += 1;
+        wx.showLoading({ title: '加载预览 ' + done + '/' + images.length });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONC, images.length) }, () => worker()));
+    wx.hideLoading();
+    const ok = urls.filter(Boolean);
+    if (!ok.length) { wx.showToast({ title: '下载失败', icon: 'none' }); return; }
+    wx.previewImage({ current: urls[idx] || urls[0], urls: ok });
+  },
   async onDeleteSelected() {
     const paths = Object.keys(this.data.selected);
     if (!paths.length) return;
@@ -173,7 +209,12 @@ Page({
     const dav = getDav();
     try {
       wx.showLoading({ title: '删除中' });
-      for (const p of paths) await dav.del(p);
+      for (const p of paths) {
+        await dav.del(p);
+        // 原图删掉时服务端缩略图一起删，本地缓存同步清
+        try { await dav.del(thumbPathFor(p)); } catch (e) { /* 没有缩略图或已删 */ }
+        thumbCache.remove(cacheKeyForPath(thumbPathFor(p)));
+      }
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
       this.setData({ editing: false });
