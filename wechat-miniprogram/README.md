@@ -32,3 +32,9 @@
 - `utils/`：auth（Basic 认证）、xml（WebDAV PROPFIND 解析，备用）、dav（WebDAV 客户端，列表/建目录经 dav-bridge）、uploader（上传逻辑）
 - `pages/`：login / home（月份列表）/ month（文件网格）/ upload
 - `tests/`：Node 单测（纯逻辑，不依赖微信环境）
+
+## 缩略图约定
+
+图片上传时用 `wx.compressImage` 本地压缩一张 `.thumb.jpg`（同目录同名、扩展名
+替换），月视图优先下载缩略图（几 KB～几十 KB）；老文件没有缩略图时首次浏览会
+下载原图并自动压缩回传一张，之后秒开。视频暂无服务端缩略图，网格显示 ▶ 占位。

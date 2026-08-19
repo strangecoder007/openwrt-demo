@@ -1,6 +1,23 @@
-<view class="card">
-  <input class="field" placeholder="服务器地址" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />
-  <input class="field" placeholder="账号" value="{{user}}" data-field="user" bindinput="onInput" />
-  <input class="field" placeholder="密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
-  <button class="btn-primary" bindtap="onSubmit" disabled="{{loading}}">登录</button>
+<view class="page">
+  <view class="brand">
+    <view class="logo">☁️</view>
+    <view class="title">我的云盘</view>
+    <view class="subtitle">连接板子，备份照片与视频</view>
+  </view>
+
+  <view class="card">
+    <view class="field-group">
+      <text class="field-label">服务器地址</text>
+      <input class="field" placeholder="https://cy.gcaiyy.xyz:34443" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />
+    </view>
+    <view class="field-group">
+      <text class="field-label">账号</text>
+      <input class="field" placeholder="backup" value="{{user}}" data-field="user" bindinput="onInput" />
+    </view>
+    <view class="field-group">
+      <text class="field-label">密码</text>
+      <input class="field" placeholder="请输入密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
+    </view>
+    <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}">{{loading ? '连接中…' : '登 录'}}</button>
+  </view>
 </view>

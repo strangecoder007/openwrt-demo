@@ -1,5 +1,8 @@
 const assert = require('assert');
-const { MAX_VIDEO_BYTES, monthDir, contentTypeFor, uniquePath, uploadFiles, makeFileName } = require('../utils/uploader');
+const {
+  MAX_VIDEO_BYTES, monthDir, contentTypeFor, thumbPathFor,
+  makeImageThumb, uniquePath, uploadFiles, makeFileName
+} = require('../utils/uploader');
 
 function testMonthDir() {
   assert.strictEqual(monthDir(new Date(2026, 7, 18, 10, 30).getTime()), '2026-08');
@@ -18,6 +21,22 @@ function testMakeFileName() {
   assert.strictEqual(makeFileName('image', t, 'png'), 'IMG_20260818_103005.png');
   assert.strictEqual(makeFileName('video', t, 'mov'), 'VID_20260818_103005.mov');
   assert.strictEqual(makeFileName('video', t), 'VID_20260818_103005.mp4');
+}
+
+function testThumbPath() {
+  assert.strictEqual(
+    thumbPathFor('/dav/backup/android/DCIM/2026-08/a.jpg'),
+    '/dav/backup/android/DCIM/2026-08/a.thumb.jpg'
+  );
+  assert.strictEqual(
+    thumbPathFor('/dav/backup/android/DCIM/2026-08/a'),
+    '/dav/backup/android/DCIM/2026-08/a.thumb.jpg'
+  );
+}
+
+async function testNoThumbWithoutWx() {
+  // Node 环境没有 wx.compressImage，缩略图生成返回 null，不影响原图上传
+  assert.strictEqual(await makeImageThumb('wxfile://a.jpg'), null);
 }
 
 function testUniquePath() {
@@ -58,5 +77,8 @@ async function testUploadFiles() {
   assert.strictEqual(err.code, 'TOO_LARGE');
 }
 
-testMonthDir(); testContentType(); testMakeFileName();
-testUniquePath().then(testUploadFiles).then(() => console.log('test-uploader OK'));
+testMonthDir(); testContentType(); testMakeFileName(); testThumbPath();
+testUniquePath()
+  .then(testNoThumbWithoutWx)
+  .then(testUploadFiles)
+  .then(() => console.log('test-uploader OK'));

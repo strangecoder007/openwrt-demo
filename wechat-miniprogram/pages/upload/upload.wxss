@@ -1,7 +1,15 @@
-.file-row { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.btn-row { display: flex; margin-bottom: 24rpx; }
+.btn-row button { flex: 1; }
+.btn-row button + button { margin-left: 20rpx; }
+.file-row { display: flex; align-items: center; padding: 20rpx 0; border-bottom: 1rpx solid #f0f1f2; }
 .file-row:last-child { border-bottom: none; }
-.file-name { font-size: 24rpx; color: #333; }
-.file-remove { font-size: 36rpx; color: #999; padding: 0 12rpx; }
-.progress-card { margin-top: 20rpx; }
-.progress-text { font-size: 24rpx; color: #07c160; margin-bottom: 12rpx; }
-.progress-text.current { color: #666; word-break: break-all; }
+.file-icon { font-size: 40rpx; margin-right: 20rpx; }
+.file-info { flex: 1; }
+.file-name { font-size: 26rpx; color: #1f2329; }
+.file-size { font-size: 22rpx; color: #9aa0a6; margin-top: 4rpx; }
+.file-remove { font-size: 44rpx; color: #c4c9cd; padding: 0 8rpx; }
+.progress-card { margin-top: 8rpx; }
+.progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16rpx; }
+.progress-label { font-size: 26rpx; color: #4e5969; }
+.progress-pct { font-size: 40rpx; font-weight: 700; color: #07c160; }
+.progress-sub { font-size: 22rpx; color: #9aa0a6; margin-top: 14rpx; word-break: break-all; }

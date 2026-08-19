@@ -24,6 +24,26 @@ function contentTypeFor(name) {
   return map[ext] || 'application/octet-stream';
 }
 
+// 缩略图约定：同目录同名，扩展名换成 .thumb.jpg
+function thumbPathFor(path) {
+  if (/\.[^./]+$/.test(path)) return path.replace(/\.[^./]+$/, '.thumb.jpg');
+  return path + '.thumb.jpg';
+}
+
+// 本地压缩生成缩略图（上传时/首次浏览时调用）；不支持时返回 null
+function makeImageThumb(src) {
+  if (typeof wx === 'undefined' || !wx.compressImage) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    wx.compressImage({
+      src,
+      quality: 60,
+      compressedWidth: 480,
+      success: (res) => resolve(res.tempFilePath),
+      fail: () => resolve(null)
+    });
+  });
+}
+
 async function uniquePath(dav, dirPath, name) {
   let candidate = name;
   let n = 1;
@@ -52,10 +72,20 @@ async function uploadFiles({ dav, files, onProgress }) {
     await dav.upload(path, f.tempFilePath, (percent) => {
       if (onProgress) onProgress(done, total, percent, f.name);
     });
+    // 图片顺带传一张压缩缩略图，月视图就不用下载原图
+    if (f.type === 'image') {
+      const thumb = await makeImageThumb(f.tempFilePath);
+      if (thumb) {
+        try { await dav.upload(thumbPathFor(path), thumb); } catch (e) { /* 缩略图失败不影响原图 */ }
+      }
+    }
     done += 1;
     if (onProgress) onProgress(done, total, 100, f.name);
   }
   return total;
 }
 
-module.exports = { MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor, uniquePath, uploadFiles };
+module.exports = {
+  MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor,
+  thumbPathFor, makeImageThumb, uniquePath, uploadFiles
+};

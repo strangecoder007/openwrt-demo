@@ -1,2 +1,29 @@
-.empty { text-align: center; color: #999; margin-top: 200rpx; }
-.fixed-upload { position: fixed; bottom: 40rpx; left: 40rpx; right: 40rpx; }
+.header { padding: 20rpx 8rpx 28rpx; }
+.title { font-size: 44rpx; font-weight: 700; }
+.subtitle { font-size: 24rpx; color: #9aa0a6; margin-top: 8rpx; }
+.month-list { padding-bottom: 160rpx; }
+.month-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(31, 35, 41, 0.06);
+}
+.month-card.press { opacity: 0.85; }
+.month-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 20rpx;
+  background: #e8f8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  margin-right: 24rpx;
+}
+.month-info { flex: 1; }
+.month-name { font-size: 32rpx; font-weight: 600; }
+.month-count { font-size: 24rpx; color: #9aa0a6; margin-top: 6rpx; }
+.month-arrow { font-size: 40rpx; color: #c4c9cd; }

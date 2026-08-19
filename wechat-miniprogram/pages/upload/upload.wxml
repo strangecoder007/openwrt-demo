@@ -1,17 +1,29 @@
-<button class="btn-primary" bindtap="pickImage" disabled="{{uploading}}">选照片（最多 9 张）</button>
-<button class="btn-primary" bindtap="pickVideo" disabled="{{uploading}}">选视频（1 个，≤50MB）</button>
-
-<view class="card" wx:if="{{files.length}}">
-  <view class="file-row" wx:for="{{files}}" wx:key="index">
-    <text class="file-name">{{index + 1}}. {{item.type === 'video' ? '视频' : '图片'}}　{{item.sizeLabel}}</text>
-    <text class="file-remove" bindtap="removeFile" data-index="{{index}}">×</text>
+<view class="page">
+  <view class="section-title">选择文件</view>
+  <view class="btn-row">
+    <button class="btn-outline" bindtap="pickImage" disabled="{{uploading}}">📷 选照片（最多 9 张）</button>
+    <button class="btn-outline" bindtap="pickVideo" disabled="{{uploading}}">🎬 选视频（≤50MB）</button>
   </view>
-</view>
 
-<view class="card progress-card" wx:if="{{uploading}}">
-  <view class="progress-text">总进度 {{done}}/{{total}}（{{percent}}%）</view>
-  <progress percent="{{percent}}" stroke-width="8" activeColor="#07c160" backgroundColor="#e8e8e8" />
-  <view class="progress-text current">正在上传：{{currentName}}　{{filePercent}}%</view>
-</view>
+  <view class="card" wx:if="{{files.length}}">
+    <view class="file-row" wx:for="{{files}}" wx:key="index">
+      <text class="file-icon">{{item.type === 'video' ? '🎬' : '🖼'}}</text>
+      <view class="file-info">
+        <view class="file-name">{{index + 1}}. {{item.type === 'video' ? '视频' : '图片'}}</view>
+        <view class="file-size">{{item.sizeLabel}}</view>
+      </view>
+      <text class="file-remove" bindtap="removeFile" data-index="{{index}}">×</text>
+    </view>
+  </view>
 
-<button class="btn-primary" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>
+  <view class="card progress-card" wx:if="{{uploading}}">
+    <view class="progress-head">
+      <text class="progress-label">总进度</text>
+      <text class="progress-pct">{{percent}}%</text>
+    </view>
+    <progress percent="{{percent}}" stroke-width="10" activeColor="#07c160" backgroundColor="#e8e8e8" active />
+    <view class="progress-sub">{{done}}/{{total}} · {{currentName}}（{{filePercent}}%）</view>
+  </view>
+
+  <button class="btn-primary big" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>
+</view>

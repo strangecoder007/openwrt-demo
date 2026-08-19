@@ -1,20 +1,27 @@
-<view class="grid">
-  <view wx:for="{{files}}" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{item.path}}" bindtap="onTapFile">
-    <image wx:if="{{item.type === 'image' && item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="thumb" />
-    <view wx:elif="{{item.type === 'image'}}" class="thumb placeholder">加载中…</view>
-    <view wx:else class="thumb placeholder video">
-      <text class="play-icon">▶</text>
-      <text class="video-name">{{item.name}}</text>
+<view class="page">
+  <view class="grid">
+    <view wx:for="{{files}}" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{item.path}}" bindtap="onTapFile" hover-class="press">
+      <image wx:if="{{item.type === 'image' && item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="thumb" />
+      <view wx:elif="{{item.type === 'image'}}" class="thumb placeholder">{{item.status === 'error' ? '加载失败' : '加载中…'}}</view>
+      <view wx:else class="thumb placeholder video">
+        <view class="video-play">▶</view>
+        <text class="video-name">{{item.name}}</text>
+      </view>
+      <view wx:if="{{editing}}" class="check {{selected[item.path] ? 'checked' : ''}}">✓</view>
     </view>
-    <view wx:if="{{editing}}" class="check {{selected[item.path] ? 'checked' : ''}}">✓</view>
   </view>
-</view>
 
-<view class="edit-bar" wx:if="{{editing}}">
-  <text class="edit-count">已选 {{selectedCount}} 项</text>
-  <button class="btn-edit" disabled="{{selectedCount === 0}}" bindtap="onDeleteSelected">删除({{selectedCount}})</button>
-  <button class="btn-edit" bindtap="onToggleEdit">完成</button>
+  <view wx:if="{{!files.length}}" class="empty">
+    <view class="empty-icon">📂</view>
+    <view class="empty-text">这个月还没有文件</view>
+  </view>
+
+  <view class="edit-bar" wx:if="{{editing}}">
+    <text class="edit-count">已选 {{selectedCount}} 项</text>
+    <button class="btn-danger" disabled="{{selectedCount === 0}}" bindtap="onDeleteSelected">删除({{selectedCount}})</button>
+    <button class="btn-ghost" bindtap="onToggleEdit">完成</button>
+  </view>
+  <button wx:if="{{files.length && !editing}}" class="btn-primary edit-fab" bindtap="onToggleEdit">编辑</button>
 </view>
-<button class="btn-primary" wx:else bindtap="onToggleEdit">编辑</button>
 
 <video wx:if="{{videoSrc}}" src="{{videoSrc}}" controls class="video-overlay"></video>
