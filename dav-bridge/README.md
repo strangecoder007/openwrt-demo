@@ -22,8 +22,9 @@
   - body 为 `application/x-www-form-urlencoded`，字段 `user`/`pass`
   - 创建成功 → `201 {"ok":true,"user":"..."}`；用户名/密码非法 → `400`；
     用户名已存在 → `409`
-  - 管理员 Basic 认证由 lighttpd 在 CGI 前完成（`/cgi-bin/dav-bridge.cgi`
-    只放行 `backup`），CGI 只校验 `REMOTE_USER` 非空即可建号；
+  - `dav-bridge.cgi` 全站认证为 `valid-user`（登录/列表/上传对所有有效账号
+    开放），**注册权限在 CGI 内部收紧**：`op=register` 要求
+    `REMOTE_USER == backup`（`ADMIN_USER`），其他账号调用返回 `403`；
   - 哈希用 `openssl passwd -apr1` 生成后追加 `/etc/lighttpd/webdav.passwd`；
     该文件属主必须为 `http`（CGI 以 http 用户追加，密码仅作 argv 短暂可见，
     后续可改用 libcrypto 实现 apr1 消除 exec）。
@@ -34,10 +35,10 @@
 
 ## 认证与安全
 
-- Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`auth.require` 里对
-  `/cgi-bin/dav-bridge.cgi` 只放行管理员 `backup`；`/dav/` 与 `/dav` 已改为
-  `valid-user`，htpasswd 里的所有账号共用同一云盘），CGI 只校验 `REMOTE_USER`
-  非空；
+- Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`/dav/`、`/dav`、
+  `/cgi-bin/dav-bridge.cgi` 均为 `valid-user`，htpasswd 里的所有账号共用
+  同一云盘），CGI 只校验 `REMOTE_USER` 非空；注册额外要求
+  `REMOTE_USER == backup`（见上）；
 - 路径必须先以 `/dav` 或 `/dav/` 开头；拒绝 `..` 段；`ls` 用 `realpath`、
   `mkdir` 用“最深已存在祖先的 realpath”双重确认解析结果仍在 `/mnt/sd` 之下，
   防 symlink 逃逸；

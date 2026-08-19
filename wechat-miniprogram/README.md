@@ -37,11 +37,12 @@
 ## 账号注册
 
 登录页可进入注册页：填新用户名/密码 + **管理员账号密码**（默认 `backup`）。
-管理员 Basic 认证由 lighttpd 在 CGI 前完成，`dav-bridge?op=register` 校验
-格式后把 `openssl passwd -apr1` 生成的哈希追加进 `/etc/lighttpd/webdav.passwd`。
-新账号与管理员共用同一个云盘（`/dav/` 认证为 `valid-user`），注册成功即登录。
-部署要求：dav-bridge 新版 ipk（含 register）装到板子，`webdav.passwd`
-属主为 `http`，lighttpd conf 已同步（见 `cloud-drive/lighttpd.conf`）。
+CGI 全站 `valid-user`，登录验证（`op=ls`）对所有有效账号开放；`op=register`
+在 CGI 内部要求 `REMOTE_USER == backup`（管理员），校验格式后把
+`openssl passwd -apr1` 生成的哈希追加进 `/etc/lighttpd/webdav.passwd`。
+新账号与管理员共用同一个云盘，注册成功即登录。部署要求：dav-bridge 新版
+ipk（含 register）装到板子，`webdav.passwd` 属主为 `http`，lighttpd conf
+已同步（见 `cloud-drive/lighttpd.conf`）。
 
 ## 缩略图约定
 

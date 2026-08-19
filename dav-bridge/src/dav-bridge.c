@@ -44,6 +44,7 @@
 #define DAV_PREFIX   "/dav"
 #define SD_ROOT      "/mnt/sd"
 #define PASSWD_FILE  "/etc/lighttpd/webdav.passwd"
+#define ADMIN_USER   "backup"
 #define MAX_QS_LEN   2048
 #define MAX_PATH_LEN 1024
 #define MAX_FORM_BYTES 4096
@@ -797,11 +798,16 @@ static int append_htpasswd(const char *name, const char *pass)
  */
 static int op_register(void)
 {
+	const char *caller = getenv("REMOTE_USER");
 	char *body = NULL;
 	size_t body_len = 0;
 	char user[64];
 	char pass[160];
 	int r;
+
+	/* 列表/上传等操作所有有效账号可用；注册账号只有管理员能调 */
+	if (!caller || strcmp(caller, ADMIN_USER) != 0)
+		return out_error(403, "Forbidden", "admin only");
 
 	r = read_body(&body, &body_len);
 	if (r == 413)
