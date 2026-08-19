@@ -1,1 +1,2 @@
-
+.empty { text-align: center; color: #999; margin-top: 200rpx; }
+.fixed-upload { position: fixed; bottom: 40rpx; left: 40rpx; right: 40rpx; }

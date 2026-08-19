@@ -1,1 +1,5 @@
-<view>占位</view>
+<view wx:if="{{months.length === 0 && !loading}}" class="empty">还没有备份，点右上角上传</view>
+<view class="card" wx:for="{{months}}" wx:key="name" data-path="{{item.path}}" bindtap="onTapMonth">
+  <text>{{item.name}}（{{item.count}} 个文件）</text>
+</view>
+<button class="btn-primary fixed-upload" bindtap="onUpload">上传</button>
