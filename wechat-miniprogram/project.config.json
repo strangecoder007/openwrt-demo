@@ -1,7 +1,7 @@
 {
   "description": "云盘微信小程序（一期）",
   "miniprogramRoot": "./",
-  "appid": "wx15b3015f0705ec62",
+  "appid": "wx4a39d6f5c1ac38a9",
   "compileType": "miniprogram",
   "setting": {
     "es6": true,
@@ -31,5 +31,6 @@
     "ignore": [],
     "include": []
   },
-  "editorSetting": {}
+  "editorSetting": {},
+  "isGameTourist": false
 }

@@ -18,7 +18,7 @@
 
 ## 打开方式
 
-微信开发者工具 → 导入项目 → 选择本目录。AppID 已配置为 `wx15b3015f0705ec62`；如需换号，修改 `project.config.json` 的 `appid` 并把 `urlCheck` 改回 `true`。
+微信开发者工具 → 导入项目 → 选择本目录。AppID 已配置为 `wx4a39d6f5c1ac38a9`；如需换号，修改 `project.config.json` 的 `appid` 并把 `urlCheck` 改回 `true`。
 
 ## 合法域名
 
