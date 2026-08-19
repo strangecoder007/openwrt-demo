@@ -1,1 +1,8 @@
-<view>占位</view>
+<view class="grid">
+  <view wx:for="{{files}}" wx:key="name" class="cell" data-file="{{item}}" bindtap="onTapFile">
+    <view wx:if="{{item.type === 'image'}}" class="thumb-placeholder">{{item.name}}</view>
+    <view wx:else class="thumb-placeholder video">▶ {{item.name}}</view>
+  </view>
+</view>
+<button class="btn-primary" bindtap="onToggleEdit">{{editing ? '完成' : '编辑'}}</button>
+<video wx:if="{{videoSrc}}" src="{{videoSrc}}" controls class="video-overlay"></video>
