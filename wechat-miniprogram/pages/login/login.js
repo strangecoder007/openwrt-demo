@@ -1,1 +1,40 @@
-Page({})
+const auth = require('../../utils/auth');
+const { createDav } = require('../../utils/dav');
+const { wxRequest } = require('../../utils/wxreq');
+
+Page({
+  data: {
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    user: 'backup',
+    pass: '',
+    loading: false
+  },
+  onLoad() {
+    const s = getApp().getSession();
+    if (s) this.setData({ baseUrl: s.baseUrl, user: s.user });
+  },
+  onInput(e) {
+    this.setData({ [e.currentTarget.dataset.field]: e.detail.value });
+  },
+  async onSubmit() {
+    const { baseUrl, user, pass } = this.data;
+    if (!baseUrl || !user || !pass) {
+      wx.showToast({ title: '请填写完整', icon: 'none' });
+      return;
+    }
+    this.setData({ loading: true });
+    try {
+      const authHeader = auth.makeAuthHeader(user, pass);
+      const dav = createDav({ baseUrl, authHeader, request: wxRequest });
+      await dav.propfind('/dav/backup/android/DCIM/', 1);
+      getApp().setSession({ baseUrl, user, pass });
+      wx.showToast({ title: '登录成功', icon: 'success' });
+      wx.reLaunch({ url: '/pages/home/home' });
+    } catch (e) {
+      const msg = e.code === 401 ? '账号或密码错误' : (e.message || '连接失败');
+      wx.showToast({ title: msg, icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
+    }
+  }
+});

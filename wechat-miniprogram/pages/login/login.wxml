@@ -1,1 +1,6 @@
-<view>占位</view>
+<view class="card">
+  <input class="field" placeholder="服务器地址" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />
+  <input class="field" placeholder="账号" value="{{user}}" data-field="user" bindinput="onInput" />
+  <input class="field" placeholder="密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
+  <button class="btn-primary" bindtap="onSubmit" disabled="{{loading}}">登录</button>
+</view>
