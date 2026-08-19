@@ -311,6 +311,7 @@ static int op_ls(const char *path, int depth)
 	char fs[PATH_MAX];
 	struct stat st;
 	DIR *d = NULL;
+	size_t fs_len;
 
 	if (!make_fs_path(path, fs, sizeof(fs)) || !under_root(fs))
 		return out_error(400, "Bad Request", "invalid path");
@@ -320,6 +321,11 @@ static int op_ls(const char *path, int depth)
 			return out_error(404, "Not Found", "not_found");
 		return out_error(500, "Internal Server Error", strerror(errno));
 	}
+
+	/* Trim a trailing slash so child hrefs do not contain "//". */
+	fs_len = strlen(fs);
+	if (fs_len > 1 && fs[fs_len - 1] == '/')
+		fs[fs_len - 1] = '\0';
 
 	if (depth != 0 && S_ISDIR(st.st_mode)) {
 		d = opendir(fs);
