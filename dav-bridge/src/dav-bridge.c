@@ -309,12 +309,22 @@ static void print_item(const char *fs_path, const char *name,
 static int op_ls(const char *path, int depth)
 {
 	char fs[PATH_MAX];
+	char prefix[PATH_MAX];
 	struct stat st;
 	DIR *d = NULL;
 	size_t fs_len;
 
-	if (!make_fs_path(path, fs, sizeof(fs)) || !under_root(fs))
+	if (!make_fs_path(path, fs, sizeof(fs)))
 		return out_error(400, "Bad Request", "invalid path");
+
+	/*
+	 * The target may not exist yet (depth-0 existence probe); realpath
+	 * would fail on a missing path, so prove the deepest existing
+	 * ancestor stays below SD_ROOT instead, then stat -> 404 if absent.
+	 */
+	if (!existing_prefix(fs, prefix, sizeof(prefix)) ||
+	    !under_root(prefix))
+		return out_error(400, "Bad Request", "path escapes root");
 
 	if (stat(fs, &st) != 0) {
 		if (errno == ENOENT)
