@@ -14,6 +14,7 @@ Page({
           const mb = t.size / 1024 / 1024;
           return {
             tempFilePath: t.tempFilePath,
+            thumbTempFilePath: t.thumbTempFilePath || '',
             size: t.size,
             sizeLabel: mb >= 1 ? mb.toFixed(1) + 'MB' : (t.size / 1024).toFixed(0) + 'KB',
             type: t.fileType,
@@ -39,8 +40,9 @@ Page({
     let target = 0;
     let smooth = 0;
     const timer = setInterval(() => {
-      smooth += (target - smooth) * 0.3;
-      if (target === 100 && 100 - smooth < 2) smooth = 100;
+      const step = target === 100 ? 0.5 : 0.3;
+      smooth += (target - smooth) * step;
+      if (target - smooth < 1) smooth = target;
       this.setData({ percent: Math.round(smooth) });
     }, 150);
     try {
@@ -51,7 +53,8 @@ Page({
           type: f.type,
           size: f.size,
           time: f.time,
-          tempFilePath: f.tempFilePath
+          tempFilePath: f.tempFilePath,
+          thumbTempFilePath: f.thumbTempFilePath || ''
         };
       });
       const dav = getDav();
@@ -61,7 +64,8 @@ Page({
         onProgress: (done, total, percent, name) => {
           const pct = Number(percent);
           const safe = isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
-          target = Math.round(((done + safe / 100) / total) * 100);
+          const next = Math.round(Math.min(100, ((done + safe / 100) / total) * 100));
+          target = Math.max(target, next); // 只涨不跌，避免换文件时进度回退
           this.setData({ done, total, filePercent: Math.round(safe), currentName: name || '' });
         }
       });

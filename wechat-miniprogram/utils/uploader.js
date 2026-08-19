@@ -83,6 +83,9 @@ async function uploadFiles({ dav, files, onProgress }) {
       if (thumb) {
         try { await dav.upload(thumbPathFor(path), thumb); } catch (e) { /* 缩略图失败不影响原图 */ }
       }
+    } else if (f.thumbTempFilePath) {
+      // 视频用 chooseMedia 自带的封面做缩略图（手机端无法截帧）
+      try { await dav.upload(thumbPathFor(path), f.thumbTempFilePath); } catch (e) { /* 封面失败不影响原视频 */ }
     }
     done += 1;
     if (onProgress) onProgress(done, total, 100, f.name);

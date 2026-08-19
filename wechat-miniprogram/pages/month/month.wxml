@@ -1,14 +1,17 @@
 <view class="page">
   <view class="grid">
     <view wx:for="{{files}}" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{item.path}}" bindtap="onTapFile" hover-class="press">
-      <image wx:if="{{item.type === 'image' && item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="thumb" />
-      <view wx:elif="{{item.type === 'image'}}" class="thumb placeholder">{{item.status === 'error' ? '加载失败' : '加载中…'}}</view>
-      <view wx:else class="thumb placeholder video">
+    <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFill" class="thumb" />
+    <view wx:else class="thumb placeholder {{item.type === 'video' ? 'video' : ''}}">
+      <block wx:if="{{item.type === 'video'}}">
         <view class="video-play">▶</view>
         <text class="video-name">{{item.name}}</text>
-      </view>
-      <view wx:if="{{editing}}" class="check {{selected[item.path] ? 'checked' : ''}}">✓</view>
+      </block>
+      <block wx:else>{{item.status === 'error' ? '加载失败' : '加载中…'}}</block>
     </view>
+    <view wx:if="{{item.type === 'video' && item.thumb}}" class="video-badge">▶</view>
+    <view wx:if="{{editing}}" class="check {{selected[item.path] ? 'checked' : ''}}">✓</view>
+  </view>
   </view>
 
   <view wx:if="{{!files.length}}" class="empty">
@@ -25,4 +28,7 @@
   <button wx:if="{{files.length && !editing}}" class="btn-primary edit-fab" bindtap="onToggleEdit">编辑</button>
 </view>
 
-<video wx:if="{{videoSrc}}" src="{{videoSrc}}" controls class="video-overlay"></video>
+<view wx:if="{{videoSrc}}" class="video-overlay" bindtap="closeVideo">
+  <video src="{{videoSrc}}" controls class="video-player" catchtap="noop" />
+  <view class="video-close" catchtap="closeVideo">×</view>
+</view>

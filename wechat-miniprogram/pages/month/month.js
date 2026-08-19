@@ -54,6 +54,8 @@ Page({
         if (res.statusCode === 200) return res.tempFilePath;
       }
     } catch (e) { /* 继续走原图 */ }
+    // 视频没有封面（老视频）时保持占位，不做原视频压缩
+    if (f.type === 'video') return null;
     const full = await this.download(f.path);
     if (full.statusCode !== 200) return null;
     const thumb = await makeImageThumb(full.tempFilePath);
@@ -65,7 +67,7 @@ Page({
   },
   async loadThumbs(files) {
     const dav = getDav();
-    const images = files.filter((f) => f.type === 'image');
+    const images = files;
     const CONC = 3;
     let i = 0;
     const worker = async () => {
@@ -80,6 +82,10 @@ Page({
       }
     };
     await Promise.all(Array.from({ length: Math.min(CONC, images.length) }, () => worker()));
+  },
+  noop() {},
+  closeVideo() {
+    this.setData({ videoSrc: '', playingName: '' });
   },
   onToggleEdit() {
     this.setData({ editing: !this.data.editing, selected: {}, selectedCount: 0 });
