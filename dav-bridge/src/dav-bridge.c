@@ -37,13 +37,16 @@
 #include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 
 #define DAV_PREFIX   "/dav"
 #define SD_ROOT      "/mnt/sd"
+#define PASSWD_FILE  "/etc/lighttpd/webdav.passwd"
 #define MAX_QS_LEN   2048
 #define MAX_PATH_LEN 1024
+#define MAX_FORM_BYTES 4096
 #define MAX_UPLOAD_BYTES (64U * 1024 * 1024)
 
 static void out_header(int status, const char *status_text)
@@ -633,6 +636,204 @@ ioerr:
 	return out_error(500, "Internal Server Error", strerror(errno));
 }
 
+/*
+ * Extract "name=<url-encoded value>" from an application/x-www-form-urlencoded
+ * body. The value is percent-decoded into out. Returns false when the field
+ * is missing or too long.
+ */
+static bool form_field(const char *body, size_t len, const char *name,
+		       char *out, size_t outsz)
+{
+	size_t nlen = strlen(name);
+	size_t i;
+	size_t vstart;
+	size_t vlen;
+
+	for (i = 0; i + nlen < len; i++) {
+		if (i > 0 && body[i - 1] != '&')
+			continue;
+		if (strncmp(body + i, name, nlen) != 0)
+			continue;
+		if (body[i + nlen] != '=')
+			continue;
+		vstart = i + nlen + 1;
+		vlen = 0;
+		while (vstart + vlen < len && body[vstart + vlen] != '&')
+			vlen++;
+		if (vlen >= outsz)
+			return false;
+		memcpy(out, body + vstart, vlen);
+		out[vlen] = '\0';
+		return percent_decode(out);
+	}
+	return false;
+}
+
+/* 用户名：3-32 个 [A-Za-z0-9._-]，首字符必须是字母或数字 */
+static bool valid_username(const char *name)
+{
+	size_t len = strlen(name);
+	size_t i;
+
+	if (len < 3 || len > 32)
+		return false;
+	if (!isalnum((unsigned char)name[0]))
+		return false;
+	for (i = 0; i < len; i++) {
+		unsigned char c = (unsigned char)name[i];
+		if (!isalnum(c) && c != '.' && c != '_' && c != '-')
+			return false;
+	}
+	return true;
+}
+
+/* 密码：6-128 个非控制字符 */
+static bool valid_password(const char *pass)
+{
+	size_t len = strlen(pass);
+	size_t i;
+
+	if (len < 6 || len > 128)
+		return false;
+	for (i = 0; i < len; i++) {
+		unsigned char c = (unsigned char)pass[i];
+		if (c < 0x20 || c == 0x7f)
+			return false;
+	}
+	return true;
+}
+
+/* 检查用户名是否已存在于 htpasswd 文件（"name:" 行首前缀） */
+static bool user_exists(const char *name)
+{
+	FILE *f = fopen(PASSWD_FILE, "r");
+	char line[256];
+	size_t nlen = strlen(name);
+	bool found = false;
+
+	if (!f)
+		return false;
+	while (fgets(line, sizeof(line), f)) {
+		size_t llen = strcspn(line, "\r\n");
+		if (llen > nlen && strncmp(line, name, nlen) == 0 &&
+		    line[nlen] == ':') {
+			found = true;
+			break;
+		}
+	}
+	fclose(f);
+	return found;
+}
+
+/*
+ * Append "name:hash" to PASSWD_FILE. The hash is produced by
+ * "openssl passwd -apr1" (Apache MD5-crypt, the format lighttpd mod_auth
+ * expects). The password travels as an argv element, so it is briefly
+ * visible in the process list; on this single-admin board that is
+ * acceptable. A future hardening step is implementing apr1 with libcrypto
+ * to avoid the exec entirely.
+ */
+static int append_htpasswd(const char *name, const char *pass)
+{
+	int pipefd[2];
+	pid_t pid;
+	char hash[128];
+	size_t hlen = 0;
+	ssize_t got;
+	FILE *f;
+	int status;
+
+	if (pipe(pipefd) != 0)
+		return -1;
+	pid = fork();
+	if (pid < 0) {
+		close(pipefd[0]);
+		close(pipefd[1]);
+		return -1;
+	}
+	if (pid == 0) {
+		close(pipefd[0]);
+		dup2(pipefd[1], STDOUT_FILENO);
+		close(pipefd[1]);
+		execl("/usr/bin/openssl", "openssl", "passwd", "-apr1",
+		      pass, (char *)NULL);
+		_exit(127);
+	}
+	close(pipefd[1]);
+	while (hlen < sizeof(hash) - 1) {
+		got = read(pipefd[0], hash + hlen, sizeof(hash) - 1 - hlen);
+		if (got <= 0)
+			break;
+		hlen += (size_t)got;
+	}
+	close(pipefd[0]);
+	waitpid(pid, &status, 0);
+	if (!WIFEXITED(status) || WEXITSTATUS(status) != 0 || hlen == 0)
+		return -1;
+	while (hlen > 0 && (hash[hlen - 1] == '\n' || hash[hlen - 1] == '\r'))
+		hlen--;
+	hash[hlen] = '\0';
+	if (hlen == 0)
+		return -1;
+
+	f = fopen(PASSWD_FILE, "a");
+	if (!f)
+		return -1;
+	if (fprintf(f, "%s:%s\n", name, hash) < 0) {
+		fclose(f);
+		return -1;
+	}
+	if (fclose(f) != 0)
+		return -1;
+	return 0;
+}
+
+/*
+ * op=register (POST, application/x-www-form-urlencoded, fields user/pass).
+ * Authentication already happened in lighttpd: this CGI is only reachable
+ * with an administrator credential (auth.require lists backup for
+ * /cgi-bin/dav-bridge.cgi), so a non-empty REMOTE_USER means the caller
+ * may create accounts.
+ */
+static int op_register(void)
+{
+	char *body = NULL;
+	size_t body_len = 0;
+	char user[64];
+	char pass[160];
+	int r;
+
+	r = read_body(&body, &body_len);
+	if (r == 413)
+		return out_error(413, "Payload Too Large", "too large");
+	if (r == 500)
+		return out_error(500, "Internal Server Error", "read failed");
+	if (!body || body_len == 0 || body_len > MAX_FORM_BYTES) {
+		free(body);
+		return out_error(400, "Bad Request", "empty or too large");
+	}
+	if (!form_field(body, body_len, "user", user, sizeof(user)) ||
+	    !form_field(body, body_len, "pass", pass, sizeof(pass))) {
+		free(body);
+		return out_error(400, "Bad Request", "missing user/pass");
+	}
+	free(body);
+
+	if (!valid_username(user))
+		return out_error(400, "Bad Request", "invalid username");
+	if (!valid_password(pass))
+		return out_error(400, "Bad Request", "invalid password");
+	if (user_exists(user))
+		return out_error(409, "Conflict", "user exists");
+	if (append_htpasswd(user, pass) != 0)
+		return out_error(500, "Internal Server Error",
+				 "append failed");
+
+	out_header(201, "Created");
+	printf("{\"ok\":true,\"user\":\"%s\"}\n", user);
+	return 0;
+}
+
 static bool parse_query(const char *qs, char *op, size_t op_sz,
 			char *path, size_t path_sz, int *depth)
 {
@@ -665,7 +866,7 @@ static bool parse_query(const char *qs, char *op, size_t op_sz,
 		}
 	}
 
-	if (!op[0] || !path[0])
+	if (!op[0])
 		return false;
 	if (*depth != 0 && *depth != 1)
 		return false;
@@ -691,10 +892,20 @@ int main(void)
 		if (!method || strcmp(method, "POST") != 0)
 			return out_error(405, "Method Not Allowed",
 					 "POST required");
+		if (!path[0])
+			return out_error(400, "Bad Request", "missing path");
 		return op_upload(path);
+	}
+	if (strcmp(op, "register") == 0) {
+		if (!method || strcmp(method, "POST") != 0)
+			return out_error(405, "Method Not Allowed",
+					 "POST required");
+		return op_register();
 	}
 	if (method && strcmp(method, "GET") != 0)
 		return out_error(405, "Method Not Allowed", "GET only");
+	if (!path[0])
+		return out_error(400, "Bad Request", "missing path");
 	if (strcmp(op, "ls") == 0)
 		return op_ls(path, depth);
 	if (strcmp(op, "mkdir") == 0)

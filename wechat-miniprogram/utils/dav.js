@@ -81,7 +81,18 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
     throw httpError(res.statusCode);
   }
 
-  return { urlFor, propfind, mkcol, put, del, upload };
+  // 注册账号：管理员 Basic 认证由 lighttpd 在 CGI 前完成（dav-bridge.cgi
+  // 只放行 backup），这里只提交新用户名/密码表单
+  async function register(user, pass) {
+    const res = await callUrl('POST', bridgeUrl('register', {}), {
+      header: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: 'user=' + encodeURIComponent(user) + '&pass=' + encodeURIComponent(pass)
+    });
+    if (res.statusCode === 201) return true;
+    throw httpError(res.statusCode);
+  }
+
+  return { urlFor, propfind, mkcol, put, del, upload, register };
 }
 
 module.exports = { createDav };

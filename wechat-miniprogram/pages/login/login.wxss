@@ -21,4 +21,5 @@
   padding: 22rpx 24rpx;
   font-size: 28rpx;
 }
+.register-link { text-align: center; font-size: 26rpx; color: #07c160; margin-top: 24rpx; }
 .version { text-align: center; font-size: 22rpx; color: #c4c9cd; margin-top: 48rpx; }

@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/login/login",
+    "pages/register/register",
     "pages/home/home",
     "pages/month/month",
     "pages/upload/upload"

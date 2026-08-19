@@ -18,6 +18,9 @@ Page({
   onInput(e) {
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value });
   },
+  onGoRegister() {
+    wx.navigateTo({ url: '/pages/register/register' });
+  },
   async onSubmit() {
     const { baseUrl, user, pass } = this.data;
     if (!baseUrl || !user || !pass) {

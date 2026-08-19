@@ -1,6 +1,7 @@
 const { getDav, authHeader } = require('../../utils/session');
 const { thumbPathFor, previewPathFor, isThumbPath, isPreviewPath, makeImageThumb, makeImagePreview } = require('../../utils/uploader');
 const { cacheKeyForPath, createThumbCache, createWxFs } = require('../../utils/thumbcache');
+const { formatBytes } = require('../../utils/format');
 
 // 缩略图/预览图共用本地持久缓存（命中后零网络请求；超限按 LRU 淘汰）
 const thumbCache = createThumbCache(createWxFs(), wx.env.USER_DATA_PATH + '/thumbcache', { maxBytes: 100 * 1024 * 1024, maxFiles: 500 });
@@ -245,8 +246,14 @@ Page({
   async onDownloadSelected() {
     const paths = Object.keys(this.data.selected);
     if (!paths.length) return;
+    const files = paths.map((p) => this.findFile(p)).filter(Boolean);
+    const totalBytes = files.reduce((s, f) => s + (f.size || 0), 0);
     const ok = await new Promise((resolve) =>
-      wx.showModal({ title: '下载', content: '将选中的 ' + paths.length + ' 个文件保存到手机相册？', success: (r) => resolve(r.confirm) })
+      wx.showModal({
+        title: '下载',
+        content: '将下载 ' + files.length + ' 个文件（共 ' + formatBytes(totalBytes) + '），保存到手机相册？',
+        success: (r) => resolve(r.confirm)
+      })
     );
     if (!ok) return;
     try {
@@ -266,17 +273,17 @@ Page({
       return;
     }
     let saved = 0;
-    wx.showLoading({ title: '保存中 0/' + paths.length });
-    for (const p of paths) {
-      const f = this.findFile(p);
-      if (!f) continue;
+    let savedBytes = 0;
+    wx.showLoading({ title: '保存中 0/' + files.length });
+    for (const f of files) {
       try {
         const res = await this.download(f.path);
         if (res.statusCode === 200) {
           if (f.type === 'image') await this.saveImageToAlbum(res.tempFilePath);
           else await this.saveVideoToAlbum(res.tempFilePath);
           saved += 1;
-          wx.showLoading({ title: '保存中 ' + saved + '/' + paths.length });
+          savedBytes += f.size || 0;
+          wx.showLoading({ title: '保存中 ' + saved + '/' + files.length + ' · ' + formatBytes(savedBytes) });
         }
       } catch (e) { /* 单个失败继续下一个 */ }
     }

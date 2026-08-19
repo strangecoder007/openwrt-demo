@@ -18,6 +18,15 @@
   - multipart/form-data，文件字段名 `file`（微信 `wx.uploadFile` 默认字段名）
   - 创建成功 → `201`；超过 64MB → `413`；格式错误 → `400`
   - 先写 `<target>.part` 再 rename，半截文件不会以正式文件名出现
+- `POST /cgi-bin/dav-bridge.cgi?op=register`
+  - body 为 `application/x-www-form-urlencoded`，字段 `user`/`pass`
+  - 创建成功 → `201 {"ok":true,"user":"..."}`；用户名/密码非法 → `400`；
+    用户名已存在 → `409`
+  - 管理员 Basic 认证由 lighttpd 在 CGI 前完成（`/cgi-bin/dav-bridge.cgi`
+    只放行 `backup`），CGI 只校验 `REMOTE_USER` 非空即可建号；
+  - 哈希用 `openssl passwd -apr1` 生成后追加 `/etc/lighttpd/webdav.passwd`；
+    该文件属主必须为 `http`（CGI 以 http 用户追加，密码仅作 argv 短暂可见，
+    后续可改用 libcrypto 实现 apr1 消除 exec）。
 
 上传/下载/删除：上传走桥（`wx.request` 无上传进度回调，`wx.uploadFile` 有
 `onProgressUpdate`，但它只支持 multipart，所以桥提供 `op=upload`）；
@@ -26,8 +35,9 @@
 ## 认证与安全
 
 - Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`auth.require` 里对
-  `/cgi-bin/dav-bridge.cgi` 配置与 `/dav/` 相同的用户 `backup`），CGI 只校验
-  `REMOTE_USER` 非空；
+  `/cgi-bin/dav-bridge.cgi` 只放行管理员 `backup`；`/dav/` 与 `/dav` 已改为
+  `valid-user`，htpasswd 里的所有账号共用同一云盘），CGI 只校验 `REMOTE_USER`
+  非空；
 - 路径必须先以 `/dav` 或 `/dav/` 开头；拒绝 `..` 段；`ls` 用 `realpath`、
   `mkdir` 用“最深已存在祖先的 realpath”双重确认解析结果仍在 `/mnt/sd` 之下，
   防 symlink 逃逸；

@@ -1,0 +1,29 @@
+.page { padding: 60rpx 48rpx; }
+.brand { text-align: center; margin-bottom: 40rpx; }
+.logo {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 0 auto 24rpx;
+  border-radius: 32rpx;
+  background: #e8f8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64rpx;
+}
+.title { font-size: 40rpx; font-weight: 700; }
+.subtitle { font-size: 24rpx; color: #9aa0a6; margin-top: 10rpx; }
+.card { background: #fff; border-radius: 20rpx; padding: 32rpx 32rpx 24rpx; box-shadow: 0 4rpx 16rpx rgba(31, 35, 41, 0.06); }
+.field-group { margin-bottom: 28rpx; }
+.field-label { font-size: 24rpx; color: #9aa0a6; display: block; margin-bottom: 12rpx; }
+.field {
+  background: #f6f7f9;
+  border-radius: 14rpx;
+  padding: 22rpx 24rpx;
+  font-size: 28rpx;
+}
+.divider { height: 2rpx; background: #f0f1f3; margin: 8rpx 0 32rpx; }
+.btn-primary { background: #07c160; color: #fff; border-radius: 14rpx; font-size: 30rpx; margin-top: 8rpx; }
+.btn-primary.big { line-height: 2.6; }
+.btn-primary[disabled] { background: #a9e6c2; color: #fff; }
+.tip { font-size: 22rpx; color: #c4c9cd; text-align: center; margin-top: 24rpx; line-height: 1.6; }

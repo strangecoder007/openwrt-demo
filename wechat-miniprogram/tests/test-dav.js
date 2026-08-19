@@ -83,6 +83,32 @@ async function main() {
   let uploadErr = null;
   try { await failUpload.upload('/dav/a.jpg', 'wxfile://a.jpg'); } catch (e) { uploadErr = e; }
   assert.strictEqual(uploadErr.code, 401);
+
+  // 注册：管理员 Basic 认证 + form 表单 → op=register
+  const regCalls = [];
+  const regDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic YWRtaW46eA==',
+    request: mockRequest((opts) => {
+      regCalls.push(opts);
+      return { statusCode: 201, data: { ok: true, user: 'newuser' } };
+    })
+  });
+  await regDav.register('newuser', 'secret123');
+  assert.strictEqual(regCalls[0].method, 'POST');
+  assert.ok(regCalls[0].url.indexOf('op=register') !== -1);
+  assert.strictEqual(regCalls[0].header.Authorization, 'Basic YWRtaW46eA==');
+  assert.strictEqual(regCalls[0].header['Content-Type'], 'application/x-www-form-urlencoded');
+  assert.strictEqual(regCalls[0].data, 'user=newuser&pass=secret123');
+
+  const regFail = createDav({
+    baseUrl: 'https://x',
+    authHeader: 'B',
+    request: mockRequest(() => ({ statusCode: 400, data: { ok: false, error: 'bad username' } }))
+  });
+  let regErr = null;
+  try { await regFail.register('x', 'y'); } catch (e) { regErr = e; }
+  assert.strictEqual(regErr.code, 400);
   console.log('test-dav OK');
 }
 

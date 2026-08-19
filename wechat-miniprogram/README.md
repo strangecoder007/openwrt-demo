@@ -30,8 +30,18 @@
 ## 结构
 
 - `utils/`：auth（Basic 认证）、xml（WebDAV PROPFIND 解析，备用）、dav（WebDAV 客户端，列表/建目录经 dav-bridge）、uploader（上传逻辑）
-- `pages/`：login / home（月份列表）/ month（文件网格）/ upload
+- `utils/format.js`：字节数格式化（下载进度/确认框显示大小）
+- `pages/`：login / register（注册账号）/ home（月份列表）/ month（文件网格）/ upload
 - `tests/`：Node 单测（纯逻辑，不依赖微信环境）
+
+## 账号注册
+
+登录页可进入注册页：填新用户名/密码 + **管理员账号密码**（默认 `backup`）。
+管理员 Basic 认证由 lighttpd 在 CGI 前完成，`dav-bridge?op=register` 校验
+格式后把 `openssl passwd -apr1` 生成的哈希追加进 `/etc/lighttpd/webdav.passwd`。
+新账号与管理员共用同一个云盘（`/dav/` 认证为 `valid-user`），注册成功即登录。
+部署要求：dav-bridge 新版 ipk（含 register）装到板子，`webdav.passwd`
+属主为 `http`，lighttpd conf 已同步（见 `cloud-drive/lighttpd.conf`）。
 
 ## 缩略图约定
 
@@ -56,4 +66,5 @@
 - 月视图支持下拉刷新（重新拉列表 + 缩略图，带防重入）；
 - 编辑模式多选 → “下载(n)”：把选中的原图/视频**保存到手机相册**
   （`wx.saveImageToPhotosAlbum` / `wx.saveVideoToPhotosAlbum`，首次需授权相册权限）；
+  确认框显示文件数与总大小，保存过程显示“保存中 x/n · 已保存 Y MB”；
   删除时服务端 `.thumb.jpg`/`.preview.jpg` 与本地缓存一并清除。

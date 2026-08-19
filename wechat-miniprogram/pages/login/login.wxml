@@ -19,6 +19,7 @@
       <input class="field" placeholder="请输入密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
     </view>
     <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}">{{loading ? '连接中…' : '登 录'}}</button>
+    <view class="register-link" bindtap="onGoRegister">没有账号？注册一个</view>
   </view>
   <view class="version">云盘 {{version}}</view>
 </view>
