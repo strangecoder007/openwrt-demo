@@ -117,6 +117,18 @@ static bool has_dotdot(const char *p)
 	return false;
 }
 
+/* 缩略图（.thumb.jpg 结尾）不参与目录列举，避免被当作普通文件/再生成链条 */
+static bool is_thumb_name(const char *name)
+{
+	static const char suf[] = ".thumb.jpg";
+	size_t len = strlen(name);
+	size_t slen = sizeof(suf) - 1;
+
+	if (len < slen)
+		return false;
+	return strcasecmp(name + len - slen, suf) == 0;
+}
+
 /*
  * Convert a client path ("/dav/backup/...") into a filesystem path under
  * /mnt/sd. The client path must start with /dav or /dav/ and must not
@@ -361,6 +373,8 @@ static int op_ls(const char *path, int depth)
 
 			if (strcmp(e->d_name, ".") == 0 ||
 			    strcmp(e->d_name, "..") == 0)
+				continue;
+			if (is_thumb_name(e->d_name))
 				continue;
 			if (snprintf(child, sizeof(child), "%s/%s", fs,
 				     e->d_name) >= (int)sizeof(child))
