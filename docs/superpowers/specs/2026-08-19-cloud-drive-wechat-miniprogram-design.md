@@ -2,6 +2,14 @@
 
 > 状态：已与用户确认（2026-08-19）。前置公网 HTTPS 与小程序开发会拆进同一份实施计划。
 
+> **修订（2026-08-19，方案 B 最小切片）**：微信真机 `wx.request` 方法白名单
+> 不含 `PROPFIND`/`MKCOL`（开发者工具碰巧放行，真机直接 fail，报
+> `network argv error`）。一期在板子上新增最小 C CGI **dav-bridge**
+> （`package/network/services/dav-bridge/`）：`GET /cgi-bin/dav-bridge.cgi?op=ls|mkdir`
+> 返回 JSON，Basic 认证由 lighttpd mod_auth 完成（与 WebDAV 同账号）；
+> `PROPFIND`/`MKCOL` 语义由该桥承担，`PUT`/`GET`/`DELETE` 仍直连
+> lighttpd mod_webdav。涉及第 3、5、6、9 节的相关描述以本修订为准。
+
 ## 1. 背景与目标
 
 板子（i.MX6ULL / OpenWrt 19.07）已跑通 lighttpd 1.4.54 + mod_webdav：
@@ -44,7 +52,10 @@ lighttpd (mod_webdav + mod_auth + mod_openssl)   ← 板子，后端零改动
 /mnt/sd/backup/android/DCIM/YYYY-MM/xxx.jpg
 ```
 
-小程序只讲 WebDAV 语义（`PROPFIND` / `PUT` / `GET` / `DELETE`）。lighttpd 仅做配置级改动（443 公网证书），不新增后端组件。
+小程序讲 WebDAV 语义（`PROPFIND` / `MKCOL` / `PUT` / `GET` / `DELETE`），其中
+`PROPFIND`/`MKCOL` 经板子上的 dav-bridge CGI 转成 GET JSON，`PUT`/`GET`/`DELETE`
+直连 lighttpd mod_webdav。lighttpd 除 443 公网证书外，仅新增 mod_cgi 与一条
+alias/auth 配置。
 
 ## 4. 目录与数据组织
 
@@ -69,6 +80,9 @@ lighttpd (mod_webdav + mod_auth + mod_openssl)   ← 板子，后端零改动
 - `wx.request` 无字节级上传进度（`onProgressUpdate` 仅 `wx.uploadFile` 有，而它是 multipart 不是 WebDAV）→ 进度做到**文件级**，单文件内显示加载态；
 - `wx.previewImage` 不能带自定义头 → 先 `wx.downloadFile`（可带 `Authorization`）到本地临时文件，再预览/播放；
 - `wx.chooseMedia` 图片单次最多 9 张、视频单次 1 个 → 多选分批；
+- **`wx.request` 方法白名单不含 `PROPFIND`/`MKCOL`**（真机 `network argv error`）→
+  文件列表/建目录改走板子 `dav-bridge` CGI（GET + JSON）；`utils/xml.js` 的
+  PROPFIND 解析保留为备用实现；
 - 合法域名：小程序后台需把 `https://cy.gcaiyy.xyz` 配入 **request 合法域名**与 **downloadFile 合法域名**（两者分开配置）；域名已备案，正式/体验版均可使用；
 - 域名归属校验：按微信要求把校验文件放到 `https://cy.gcaiyy.xyz/` 根路径（前置任务处理）。
 
@@ -109,7 +123,7 @@ lighttpd (mod_webdav + mod_auth + mod_openssl)   ← 板子，后端零改动
 ## 9. 工程结构与落位
 
 - 小程序代码放 demo 仓库新目录 `wechat-miniprogram/`（原生小程序，微信开发者工具直接打开；`project.config.json` 用用户自己的 AppID）；
-- 板子侧无代码改动，仅证书与 lighttpd 配置；
+- 板子侧新增 `dav-bridge` CGI（C，仅 libc，无新依赖），证书与 lighttpd 配置照旧；
 - 本设计文档与后续实施计划同步到 demo 仓库 `docs/`。
 
 ## 10. 验收标准

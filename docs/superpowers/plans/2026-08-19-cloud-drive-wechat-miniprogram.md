@@ -6,6 +6,14 @@
 
 **Architecture:** 小程序只讲 WebDAV（`PROPFIND`/`MKCOL`/`PUT`/`GET`/`DELETE` + Basic 认证），后端复用现有 lighttpd 1.4.54 mod_webdav，零代码改动；前置任务把公网 80/443 打通的准备工作做掉（uhttpd 让出 80、acme 证书、防火墙、微信后台域名）。小程序代码放 demo 仓库 `wechat-miniprogram/`，纯逻辑单元用 Node 跑单测，页面交互在微信开发者工具 + 真机验收。
 
+> **修订（2026-08-19）**：微信真机 `wx.request` 方法白名单不含
+> `PROPFIND`/`MKCOL`（开发者工具碰巧放行，真机直接 `fail`，报
+> `network argv error`）。一期新增板子端最小 C CGI **dav-bridge**
+> （Task 12）：文件列表/建目录走 `GET /cgi-bin/dav-bridge.cgi?op=ls|mkdir`
+> （返回 JSON，Basic 认证由 lighttpd mod_auth 完成，与 WebDAV 同账号）；
+> 上传/下载/删除仍直连 mod_webdav。“后端零代码改动”约束相应放宽为
+> “mod_webdav 不动，仅新增独立 CGI 桥”。
+
 **Tech Stack:** 微信小程序原生（JS/WXML/WXSS）、lighttpd 1.4.54 mod_webdav/mod_openssl、acme.sh（Let's Encrypt）、Node（仅测试）、无 npm 依赖。
 
 **Spec:** [docs/superpowers/specs/2026-08-19-cloud-drive-wechat-miniprogram-design.md](\\192.168.100.181\chao\openwrt-19.07\openwrt\docs\superpowers\specs\2026-08-19-cloud-drive-wechat-miniprogram-design.md)
@@ -1270,6 +1278,56 @@ git -C ../my-openwrt-demo push origin main
 - [ ] **Step 4: 收尾告知**
 
 向用户交付：公网 HTTPS 地址、AppID 替换位置、合法域名配置状态、密码轮换记录（仅本地台账）、续期 cron、后续演进（分块上传/API 层）。
+
+### Task 12: dav-bridge CGI 桥（微信 PROPFIND/MKCOL 受限的对策）
+
+**Files:**
+- Create（主树）：`package/network/services/dav-bridge/{Makefile,src/dav-bridge.c,README.md}`
+- Modify（demo 仓库）：`wechat-miniprogram/utils/dav.js`、`tests/test-dav.js`、`README.md`
+- Modify（demo 仓库）：`cloud-drive/lighttpd.conf`（加 `mod_cgi`、`cgi.assign`、`/cgi-bin/dav-bridge.cgi` 的 auth.require）
+- Modify（板子）：`/etc/lighttpd/lighttpd.conf`（安装模块后应用同款改动）
+
+**Interfaces:**
+- Consumes：Task 1 的防火墙/密码、Task 3 的 443、用户先在 Linux 构建主机编出
+  `lighttpd-mod-cgi`（`.config` 需 `CONFIG_PACKAGE_lighttpd-mod-cgi=y`）。
+- Produces：小程序 `propfind`/`mkcol` 经 GET JSON 桥完成，`put`/`del`/`downloadFile`
+  行为不变；安全上路径越界（`..`、symlink 逃逸）被拒。
+
+- [x] **Step 1: 源码与单测（controller 已完成）** —— dav-bridge 包（C 无依赖，
+  仅 libc；`REMOTE_USER` 校验 + `realpath` 根目录围栏 + `%00`/`..` 拒绝）；
+  dav.js 的 `propfind`/`mkcol` 改走桥；test-dav.js 更新，4 个 Node 单测全过。
+- [ ] **Step 2: 用户构建（Linux 构建主机）**
+
+```sh
+sed -i 's/# CONFIG_PACKAGE_lighttpd-mod-cgi is not set/CONFIG_PACKAGE_lighttpd-mod-cgi=y/' .config
+make package/feeds/packages/lighttpd/compile V=s
+make package/network/services/dav-bridge/compile V=s
+make package/index V=s
+```
+
+产出 `bin/targets/imx6/generic/packages/{lighttpd-mod-cgi_1.4.54-2_arm_cortex-a9_neon.ipk,dav-bridge_1_arm_cortex-a9_neon.ipk}`。
+
+- [ ] **Step 3: 板子安装 + 应用新 lighttpd.conf**
+
+```sh
+opkg install --force-reinstall /tmp/lighttpd-mod-cgi_*.ipk /tmp/dav-bridge_*.ipk
+# 用 demo 仓库 cloud-drive/lighttpd.conf 覆盖 /etc/lighttpd/lighttpd.conf
+lighttpd -tt -f /etc/lighttpd/lighttpd.conf && /etc/init.d/lighttpd restart
+```
+
+- [ ] **Step 4: 验收**
+
+```powershell
+curl.exe -s -u backup:'<密码>' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.cgi?op=ls&path=%2Fdav%2Fbackup%2Fandroid%2FDCIM%2F&depth=1"   # 200 JSON 列表
+curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.cgi?op=ls&path=%2Fetc%2F&depth=1"                     # 400
+curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.cgi?op=ls&path=%2Fdav%2F..%2Fetc%2F&depth=1"          # 400
+curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.cgi?op=ls&path=%2Fdav%2F&depth=1"                     # 401（无认证）
+```
+
+真机复测登录/月份列表/月视图/上传；上传/下载/删除路径不受桥影响。
+
+- [ ] **Step 5: Commit 并推送 demo 仓库（controller）** —— dav-bridge 包目录、
+  wechat-miniprogram（含此前漏提交的 utils/tests 与 AppID）、lighttpd.conf、docs。
 
 ## 二期（不在本计划）
 
