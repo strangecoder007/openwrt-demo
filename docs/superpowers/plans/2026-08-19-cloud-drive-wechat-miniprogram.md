@@ -1326,8 +1326,9 @@ curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.c
 
 真机复测登录/月份列表/月视图/上传；上传/下载/删除路径不受桥影响。
 
-- [ ] **Step 5: Commit 并推送 demo 仓库（controller）** —— dav-bridge 包目录、
-  wechat-miniprogram（含此前漏提交的 utils/tests 与 AppID）、lighttpd.conf、docs。
+- [x] **Step 5: Commit 并推送 demo 仓库（controller，e926acb/b45df8a/49157c2）** ——
+  dav-bridge 包目录、wechat-miniprogram（含此前漏提交的 utils/tests 与 AppID）、
+  lighttpd.conf、docs。
 
 ## 二期（不在本计划）
 
