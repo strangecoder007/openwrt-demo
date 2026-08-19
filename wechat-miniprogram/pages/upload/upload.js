@@ -35,6 +35,14 @@ Page({
     const list = this.data.files;
     if (!list.length) { wx.showToast({ title: '先选择文件', icon: 'none' }); return; }
     this.setData({ uploading: true, done: 0, total: list.length, percent: 0, filePercent: 0, currentName: '' });
+    // 真实进度目标 + 平滑展示值：进度条保证会动，不会卡在 0 或显示 NaN/null
+    let target = 0;
+    let smooth = 0;
+    const timer = setInterval(() => {
+      smooth += (target - smooth) * 0.3;
+      if (target === 100 && 100 - smooth < 2) smooth = 100;
+      this.setData({ percent: Math.round(smooth) });
+    }, 150);
     try {
       const prepared = list.map((f) => {
         const ext = (f.tempFilePath.split('.').pop() || '').toLowerCase() || (f.type === 'video' ? 'mp4' : 'jpg');
@@ -51,15 +59,19 @@ Page({
         dav,
         files: prepared,
         onProgress: (done, total, percent, name) => {
-          const overall = Math.round(((done + percent / 100) / total) * 100);
-          this.setData({ done, total, percent: overall, filePercent: Math.round(percent), currentName: name });
+          const pct = Number(percent);
+          const safe = isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+          target = Math.round(((done + safe / 100) / total) * 100);
+          this.setData({ done, total, filePercent: Math.round(safe), currentName: name || '' });
         }
       });
+      target = 100;
       wx.showToast({ title: '上传完成 ' + prepared.length + ' 个', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 800);
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
     } finally {
+      clearInterval(timer);
       this.setData({ uploading: false });
     }
   }

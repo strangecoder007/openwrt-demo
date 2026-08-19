@@ -18,6 +18,7 @@
 
   <view class="edit-bar" wx:if="{{editing}}">
     <text class="edit-count">已选 {{selectedCount}} 项</text>
+    <button class="btn-outline mini" disabled="{{selectedCount === 0}}" bindtap="onDownloadSelected">下载({{selectedCount}})</button>
     <button class="btn-danger" disabled="{{selectedCount === 0}}" bindtap="onDeleteSelected">删除({{selectedCount}})</button>
     <button class="btn-ghost" bindtap="onToggleEdit">完成</button>
   </view>

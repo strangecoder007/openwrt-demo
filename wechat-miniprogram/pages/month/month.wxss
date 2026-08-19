@@ -63,6 +63,8 @@
   box-shadow: 0 -4rpx 16rpx rgba(31, 35, 41, 0.08);
 }
 .edit-count { flex: 1; font-size: 26rpx; color: #1f2329; }
+.edit-bar button { margin-left: 16rpx; font-size: 24rpx; padding: 0 20rpx; line-height: 2.4; }
+.edit-bar .btn-outline.mini { color: #07c160; }
 .edit-bar .btn-danger { margin-right: 16rpx; }
 .edit-fab {
   position: fixed;

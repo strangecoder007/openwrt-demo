@@ -136,5 +136,57 @@ Page({
       wx.hideLoading();
       wx.showToast({ title: err.message, icon: 'none' });
     }
+  },
+  saveImageToAlbum(filePath) {
+    return new Promise((resolve, reject) =>
+      wx.saveImageToPhotosAlbum({ filePath, success: resolve, fail: reject })
+    );
+  },
+  saveVideoToAlbum(filePath) {
+    return new Promise((resolve, reject) =>
+      wx.saveVideoToPhotosAlbum({ filePath, success: resolve, fail: reject })
+    );
+  },
+  // 批量下载 = 把选中的原图/视频保存到手机相册（缩略图只用于网格，不保存）
+  async onDownloadSelected() {
+    const paths = Object.keys(this.data.selected);
+    if (!paths.length) return;
+    const ok = await new Promise((resolve) =>
+      wx.showModal({ title: '下载', content: '将选中的 ' + paths.length + ' 个文件保存到手机相册？', success: (r) => resolve(r.confirm) })
+    );
+    if (!ok) return;
+    try {
+      await new Promise((resolve, reject) =>
+        wx.authorize({ scope: 'scope.writePhotosAlbum', success: resolve, fail: reject })
+      );
+    } catch (e) {
+      const open = await new Promise((resolve) =>
+        wx.showModal({
+          title: '需要相册权限',
+          content: '保存图片/视频需要相册权限，是否去设置开启？',
+          confirmText: '去设置',
+          success: (r) => resolve(r.confirm)
+        })
+      );
+      if (open) wx.openSetting();
+      return;
+    }
+    let saved = 0;
+    wx.showLoading({ title: '保存中 0/' + paths.length });
+    for (const p of paths) {
+      const f = this.data.files.find((x) => x.path === p);
+      if (!f) continue;
+      try {
+        const res = await this.download(f.path);
+        if (res.statusCode === 200) {
+          if (f.type === 'image') await this.saveImageToAlbum(res.tempFilePath);
+          else await this.saveVideoToAlbum(res.tempFilePath);
+          saved += 1;
+          wx.showLoading({ title: '保存中 ' + saved + '/' + paths.length });
+        }
+      } catch (e) { /* 单个失败继续下一个 */ }
+    }
+    wx.hideLoading();
+    wx.showToast({ title: '已保存 ' + saved + ' 个', icon: 'success' });
   }
 });

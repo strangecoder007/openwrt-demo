@@ -72,7 +72,10 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
       header: { Authorization: authHeader },
       timeout: 120000,
       // wx 的 onProgressUpdate 收到的是 {progress, totalBytesSent, ...} 对象
-      onProgressUpdate: onProgress ? (p) => onProgress(p.progress) : null
+      onProgressUpdate: onProgress ? (p) => {
+        const v = p && typeof p.progress === 'number' ? p.progress : 0;
+        onProgress(v);
+      } : null
     });
     if (res.statusCode === 201) return true;
     throw httpError(res.statusCode);
