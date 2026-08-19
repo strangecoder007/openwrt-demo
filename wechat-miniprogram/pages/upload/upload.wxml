@@ -26,7 +26,8 @@
       <text class="progress-label">总进度</text>
       <text class="progress-pct">{{percent}}%</text>
     </view>
-    <progress percent="{{percent}}" stroke-width="10" activeColor="#07c160" backgroundColor="#e8e8e8" active />
+  <!-- 不能用 active：它会在每次 percent 更新时从 0 重播动画，总条看起来一直从头开始 -->
+  <progress percent="{{percent}}" stroke-width="10" activeColor="#07c160" backgroundColor="#e8e8e8" />
     <view class="progress-sub">{{done}}/{{total}} · {{currentName}}（{{filePercent}}%）</view>
   </view>
 

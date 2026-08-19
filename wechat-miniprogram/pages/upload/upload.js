@@ -49,7 +49,8 @@ Page({
       const step = target === 100 ? 0.5 : 0.3;
       smooth += (target - smooth) * step;
       if (target - smooth < 1) smooth = target;
-      this.setData({ percent: Math.round(smooth) });
+      const shown = Math.round(smooth);
+      if (shown !== this.data.percent) this.setData({ percent: shown });
     }, 150);
     try {
       const prepared = list.map((f) => {
