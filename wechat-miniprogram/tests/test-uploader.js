@@ -30,26 +30,29 @@ function testUniquePath() {
 
 async function testUploadFiles() {
   const log = [];
+  const progress = [];
   const dav = {
     mkcol: async (p) => { log.push('mkcol:' + p); },
     propfind: async () => null,
-    put: async (p) => { log.push('put:' + p); }
+    upload: async (p, fp, onProgress) => {
+      log.push('upload:' + p + '#' + fp);
+      if (onProgress) onProgress(50);
+    }
   };
-  const progress = [];
   const files = [
-    { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), arrayBuffer: new Uint8Array(1).buffer },
-    { name: 'v.mp4', type: 'video', size: 1024, time: new Date(2026, 7, 19).getTime(), arrayBuffer: new Uint8Array(1).buffer }
+    { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' },
+    { name: 'v.mp4', type: 'video', size: 1024, time: new Date(2026, 7, 19).getTime(), tempFilePath: 'wxfile://v.mp4' }
   ];
-  await uploadFiles({ dav, files, onProgress: (i, t) => progress.push(i + '/' + t) });
+  await uploadFiles({ dav, files, onProgress: (done, total, pct) => progress.push(done + '/' + total + '@' + pct) });
   assert.deepStrictEqual(log, [
     'mkcol:/dav/backup/android/DCIM/2026-08',
-    'put:/dav/backup/android/DCIM/2026-08/a.jpg',
+    'upload:/dav/backup/android/DCIM/2026-08/a.jpg#wxfile://a.jpg',
     'mkcol:/dav/backup/android/DCIM/2026-08',
-    'put:/dav/backup/android/DCIM/2026-08/v.mp4'
+    'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4'
   ]);
-  assert.deepStrictEqual(progress, ['1/2', '2/2']);
+  assert.deepStrictEqual(progress, ['0/2@50', '1/2@100', '1/2@50', '2/2@100']);
 
-  const big = { name: 'b.mp4', type: 'video', size: MAX_VIDEO_BYTES + 1, time: Date.now(), arrayBuffer: new Uint8Array(1).buffer };
+  const big = { name: 'b.mp4', type: 'video', size: MAX_VIDEO_BYTES + 1, time: Date.now(), tempFilePath: 'wxfile://b.mp4' };
   let err = null;
   try { await uploadFiles({ dav, files: [big], onProgress: () => {} }); } catch (e) { err = e; }
   assert.strictEqual(err.code, 'TOO_LARGE');

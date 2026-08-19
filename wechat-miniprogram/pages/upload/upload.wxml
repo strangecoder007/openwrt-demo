@@ -1,7 +1,17 @@
 <button class="btn-primary" bindtap="pickImage" disabled="{{uploading}}">选照片（最多 9 张）</button>
 <button class="btn-primary" bindtap="pickVideo" disabled="{{uploading}}">选视频（1 个，≤50MB）</button>
-<view class="card">
-  <view wx:for="{{files}}" wx:key="index">{{index + 1}}. {{item.type}}（{{item.size}}B）</view>
+
+<view class="card" wx:if="{{files.length}}">
+  <view class="file-row" wx:for="{{files}}" wx:key="index">
+    <text class="file-name">{{index + 1}}. {{item.type === 'video' ? '视频' : '图片'}}　{{item.sizeLabel}}</text>
+    <text class="file-remove" bindtap="removeFile" data-index="{{index}}">×</text>
+  </view>
 </view>
-<view wx:if="{{uploading}}" class="progress">进度：{{done}}/{{files.length}}　{{log}}</view>
+
+<view class="card progress-card" wx:if="{{uploading}}">
+  <view class="progress-text">总进度 {{done}}/{{total}}（{{percent}}%）</view>
+  <progress percent="{{percent}}" stroke-width="8" activeColor="#07c160" backgroundColor="#e8e8e8" />
+  <view class="progress-text current">正在上传：{{currentName}}　{{filePercent}}%</view>
+</view>
+
 <button class="btn-primary" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>

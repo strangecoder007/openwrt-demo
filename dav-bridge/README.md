@@ -11,9 +11,14 @@
   - 正常 → `200 {"ok":true,"items":[{href,contentLength,contentType,lastModified,isDir}, ...]}`
 - `GET /cgi-bin/dav-bridge.cgi?op=mkdir&path=<url-encoded>`
   - 创建成功 → `201`；已存在 → `405`（与 WebDAV `MKCOL` 语义一致）
+- `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`
+  - multipart/form-data，文件字段名 `file`（微信 `wx.uploadFile` 默认字段名）
+  - 创建成功 → `201`；超过 64MB → `413`；格式错误 → `400`
+  - 先写 `<target>.part` 再 rename，半截文件不会以正式文件名出现
 
-上传/下载/删除不走桥：`PUT`、`GET`、`DELETE` 仍是小程序合法方法，直接由
-lighttpd mod_webdav 处理。
+上传/下载/删除：上传走桥（`wx.request` 无上传进度回调，`wx.uploadFile` 有
+`onProgressUpdate`，但它只支持 multipart，所以桥提供 `op=upload`）；
+下载/删除仍是小程序合法方法（`GET`/`DELETE`），直接由 lighttpd mod_webdav 处理。
 
 ## 认证与安全
 
@@ -24,7 +29,9 @@ lighttpd mod_webdav 处理。
   `mkdir` 用“最深已存在祖先的 realpath”双重确认解析结果仍在 `/mnt/sd` 之下，
   防 symlink 逃逸；
 - 拒绝 `%00`，路径参数上限 1024 字节；
-- 只接受 `GET`，`REMOTE_USER` 为空直接 401。
+- `ls`/`mkdir` 只接受 `GET`，`upload` 只接受 `POST`；`REMOTE_USER` 为空直接 401。
+- 上传请求体上限 64MB 由 CGI 自身保证（超限 413）；lighttpd 1.4.54 默认请求体
+  上限足够（不认 `server.max-request-body-size` 配置键，会告警忽略）。
 
 ## lighttpd 配置（板子 `/etc/lighttpd/lighttpd.conf`）
 

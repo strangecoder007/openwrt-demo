@@ -1340,6 +1340,12 @@ curl.exe -s -o NUL -w '%{http_code}' "https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.c
   0.0.0.0/[::]:34443 ssl socket，防火墙 wan 放行 34443（IPv4+IPv6），登录页默认
   baseUrl 改为 `https://cy.gcaiyy.xyz:34443`；LAN 侧 HTTPS 34443 冒烟通过
   （probe-ok / 桥 JSON / 401）。公网入向仍待手机流量实测。
+- [x] **Step 7: 上传走 op=upload + 页面体验（一次提交，不碎步提交）** ——
+  `wx.request` 无上传进度回调，dav-bridge 新增 `op=upload`（POST multipart，
+  字段名 file，先写 .part 再 rename，上限 64MB，PKG_RELEASE=3）；小程序改用
+  `wx.uploadFile` 上传（有 onProgressUpdate 真实进度），上传页加总进度条 +
+  当前文件百分比 + 可移除文件；月视图改图片缩略图网格（并发 3 下载原图临时文件）
+  + 编辑态多选删除（复选框 + 底部删除栏）；`server.max-request-body-size=64MB`。
 
 ## 二期（不在本计划）
 

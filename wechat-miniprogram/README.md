@@ -5,16 +5,17 @@
 > **板子依赖**：微信真机 `wx.request` 不支持 `PROPFIND`/`MKCOL`（开发者工具
 > 碰巧放行，真机报 `network argv error`），所以文件列表与建目录走板子上的
 > `dav-bridge` CGI（`GET /cgi-bin/dav-bridge.cgi?op=ls|mkdir`，返回 JSON，
-> Basic 认证与 WebDAV 相同）；上传/下载/删除仍直连 lighttpd mod_webdav。
+> Basic 认证与 WebDAV 相同）；上传走 `wx.uploadFile`（有上传进度回调）到
+> `POST /cgi-bin/dav-bridge.cgi?op=upload`（multipart）；下载/删除仍直连
+> lighttpd mod_webdav。
 > 部署需安装 `dav-bridge` 与 `lighttpd-mod-cgi` 两个 ipk，并把
 > `cloud-drive/lighttpd.conf` 应用到板子 `/etc/lighttpd/`。
 
 ## 已踩的坑
 
-- `wx.getFileSystemManager().readFile` 传 `encoding: 'binary'` 返回的是**字符串**，
-  `wx.request` PUT 会按 UTF-8 编码发送 → 所有 >127 的字节被膨胀成两字节，
-  图片/视频落盘即损坏（文件头 `FF D8` 变成 `C3 BF C3 98`）。必须**不传 encoding**，
-  让 `readFile` 返回 ArrayBuffer，`wx.request` 才会原样发送字节。
+- 曾用 `readFile(encoding:'binary')` + `wx.request` PUT 上传，字符串被 UTF-8 编码
+  导致文件损坏（文件头 `FF D8` 变 `C3 BF C3 98`）。现改为 `wx.uploadFile` 直接
+  传 `tempFilePath`（流式、有进度），不再在 JS 里读整文件。
 
 ## 打开方式
 

@@ -1,4 +1,4 @@
-function createDav({ baseUrl, authHeader, request }) {
+function createDav({ baseUrl, authHeader, request, uploadFile }) {
   const base = baseUrl.replace(/\/+$/, '');
 
   function urlFor(path) {
@@ -61,7 +61,24 @@ function createDav({ baseUrl, authHeader, request }) {
     throw httpError(res.statusCode);
   }
 
-  return { urlFor, propfind, mkcol, put, del };
+  // wx.request 没有上传进度回调，上传改走 wx.uploadFile（multipart POST）
+  // → dav-bridge op=upload。onProgress 收到当前文件 0-100 的百分比。
+  async function upload(path, filePath, onProgress) {
+    if (!uploadFile) throw new Error('uploadFile not provided');
+    const res = await uploadFile({
+      url: bridgeUrl('upload', { path }),
+      filePath,
+      name: 'file',
+      header: { Authorization: authHeader },
+      timeout: 120000,
+      // wx 的 onProgressUpdate 收到的是 {progress, totalBytesSent, ...} 对象
+      onProgressUpdate: onProgress ? (p) => onProgress(p.progress) : null
+    });
+    if (res.statusCode === 201) return true;
+    throw httpError(res.statusCode);
+  }
+
+  return { urlFor, propfind, mkcol, put, del, upload };
 }
 
 module.exports = { createDav };

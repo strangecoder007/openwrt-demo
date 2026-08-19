@@ -44,6 +44,7 @@
 #define SD_ROOT      "/mnt/sd"
 #define MAX_QS_LEN   2048
 #define MAX_PATH_LEN 1024
+#define MAX_UPLOAD_BYTES (64U * 1024 * 1024)
 
 static void out_header(int status, const char *status_text)
 {
@@ -402,6 +403,216 @@ static int op_mkdir(const char *path)
 	return 0;
 }
 
+static size_t find_bytes(const char *hay, size_t hlen, size_t from,
+			 const char *needle, size_t nlen)
+{
+	size_t i;
+
+	if (from > hlen || nlen == 0 || nlen > hlen - from)
+		return (size_t)-1;
+	for (i = from; i + nlen <= hlen; i++) {
+		if (memcmp(hay + i, needle, nlen) == 0)
+			return i;
+	}
+	return (size_t)-1;
+}
+
+/*
+ * Extract the boundary token from the multipart Content-Type. The env
+ * string is owned by the CGI runtime, so we copy the token into buf.
+ */
+static bool get_boundary(char *buf, size_t bufsz)
+{
+	const char *ct = getenv("CONTENT_TYPE");
+	const char *p;
+	size_t len;
+
+	if (!ct)
+		return false;
+	p = strstr(ct, "boundary=");
+	if (!p)
+		return false;
+	p += strlen("boundary=");
+	if (*p == '"')
+		p++;
+	len = strcspn(p, " \t\r\n\"");
+	if (len == 0 || len >= bufsz)
+		return false;
+	memcpy(buf, p, len);
+	buf[len] = '\0';
+	return true;
+}
+
+/*
+ * Read the whole request body (max MAX_UPLOAD_BYTES) into memory. The
+ * board has enough RAM for a 50MB video, and parsing multipart from a
+ * single buffer is far less error-prone than a streaming state machine.
+ */
+static int read_body(char **out, size_t *out_len)
+{
+	const char *cl = getenv("CONTENT_LENGTH");
+	char buf[16384];
+	size_t total = 0;
+	size_t chunk;
+
+	*out = NULL;
+	*out_len = 0;
+
+	if (cl) {
+		unsigned long long want = strtoull(cl, NULL, 10);
+
+		if (want > MAX_UPLOAD_BYTES)
+			return 413;
+		if (want == 0)
+			return 0;
+		*out = malloc(want);
+		if (!*out)
+			return 500;
+		while (total < want) {
+			chunk = fread(*out + total, 1, want - total, stdin);
+			if (chunk == 0)
+				break;
+			total += chunk;
+		}
+		*out_len = total;
+		return 0;
+	}
+
+	for (;;) {
+		chunk = fread(buf, 1, sizeof(buf), stdin);
+		if (chunk == 0)
+			break;
+		if (total + chunk > MAX_UPLOAD_BYTES) {
+			free(*out);
+			*out = NULL;
+			return 413;
+		}
+		{
+			char *nb = realloc(*out, total + chunk);
+			if (!nb) {
+				free(*out);
+				*out = NULL;
+				return 500;
+			}
+			*out = nb;
+		}
+		memcpy(*out + total, buf, chunk);
+		total += chunk;
+	}
+	*out_len = total;
+	return 0;
+}
+
+/*
+ * op=upload&path=<url-encoded>  (POST, multipart/form-data, part name
+ * "file"). WeChat wx.uploadFile has onProgressUpdate, unlike wx.request,
+ * so uploads go through this CGI instead of a WebDAV PUT. The file part
+ * is written to "<target>.part" first and renamed into place so a
+ * half-written body never shows up as a valid file.
+ */
+static int op_upload(const char *path)
+{
+	char fs[PATH_MAX];
+	char prefix[PATH_MAX];
+	char boundary[128];
+	char needle[160];
+	char tmp[PATH_MAX];
+	char *body = NULL;
+	size_t body_len = 0;
+	size_t b_len, n_len, pos, hs, he, ps, pe;
+	bool is_file, found = false;
+	int r;
+
+	if (!make_fs_path(path, fs, sizeof(fs)))
+		return out_error(400, "Bad Request", "invalid path");
+	if (!existing_prefix(fs, prefix, sizeof(prefix)) ||
+	    !under_root(prefix))
+		return out_error(400, "Bad Request", "path escapes root");
+
+	if (!get_boundary(boundary, sizeof(boundary)))
+		return out_error(400, "Bad Request", "missing boundary");
+	b_len = strlen(boundary);
+	if (snprintf(needle, sizeof(needle), "\r\n--%s", boundary) >=
+	    (int)sizeof(needle))
+		return out_error(500, "Internal Server Error", "boundary too long");
+	n_len = strlen(needle);
+
+	r = read_body(&body, &body_len);
+	if (r == 413)
+		return out_error(413, "Payload Too Large", "too large");
+	if (r == 500)
+		return out_error(500, "Internal Server Error", "read failed");
+	if (body_len == 0)
+		return out_error(400, "Bad Request", "empty body");
+
+	/* First line must be "--boundary". */
+	pos = (body_len >= 2 && body[0] == '\r' && body[1] == '\n') ? 2 : 0;
+	if (body_len - pos < b_len + 2 ||
+	    memcmp(body + pos, "--", 2) != 0 ||
+	    memcmp(body + pos + 2, boundary, b_len) != 0)
+		goto bad;
+	pos += b_len + 2;
+	if (body_len - pos < 2 || body[pos] != '\r' || body[pos + 1] != '\n')
+		goto bad;
+	pos += 2;
+
+	for (;;) {
+		hs = pos;
+		he = find_bytes(body, body_len, hs, "\r\n\r\n", 4);
+		if (he == (size_t)-1)
+			goto bad;
+		is_file = find_bytes(body, body_len, hs, "name=\"file\"", 10) !=
+			  (size_t)-1;
+		ps = he + 4;
+		pe = find_bytes(body, body_len, ps, needle, n_len);
+		if (pe == (size_t)-1)
+			goto bad;
+
+		if (is_file) {
+			snprintf(tmp, sizeof(tmp), "%s.part", fs);
+			FILE *outf = fopen(tmp, "wb");
+			if (!outf)
+				goto ioerr;
+			if (fwrite(body + ps, 1, pe - ps, outf) != pe - ps) {
+				fclose(outf);
+				unlink(tmp);
+				goto ioerr;
+			}
+			if (fclose(outf) != 0) {
+				unlink(tmp);
+				goto ioerr;
+			}
+			if (rename(tmp, fs) != 0) {
+				unlink(tmp);
+				goto ioerr;
+			}
+			found = true;
+			break;
+		}
+
+		pos = pe + n_len;
+		if (body_len - pos >= 2 && body[pos] == '-' && body[pos + 1] == '-')
+			break; /* closing boundary, no file part seen */
+		if (body_len - pos < 2 || body[pos] != '\r' || body[pos + 1] != '\n')
+			goto bad;
+		pos += 2;
+	}
+	free(body);
+
+	if (!found)
+		return out_error(400, "Bad Request", "no file part");
+	out_header(201, "Created");
+	printf("{\"ok\":true,\"items\":[]}\n");
+	return 0;
+
+bad:
+	free(body);
+	return out_error(400, "Bad Request", "malformed multipart");
+ioerr:
+	free(body);
+	return out_error(500, "Internal Server Error", strerror(errno));
+}
+
 static bool parse_query(const char *qs, char *op, size_t op_sz,
 			char *path, size_t path_sz, int *depth)
 {
@@ -452,12 +663,18 @@ int main(void)
 
 	if (!user || !*user)
 		return out_error(401, "Unauthorized", "unauthorized");
-	if (method && strcmp(method, "GET") != 0)
-		return out_error(405, "Method Not Allowed", "GET only");
 	if (!parse_query(qs, op, sizeof(op), path, sizeof(path), &depth))
 		return out_error(400, "Bad Request",
 				 "missing or invalid query");
 
+	if (strcmp(op, "upload") == 0) {
+		if (!method || strcmp(method, "POST") != 0)
+			return out_error(405, "Method Not Allowed",
+					 "POST required");
+		return op_upload(path);
+	}
+	if (method && strcmp(method, "GET") != 0)
+		return out_error(405, "Method Not Allowed", "GET only");
 	if (strcmp(op, "ls") == 0)
 		return op_ls(path, depth);
 	if (strcmp(op, "mkdir") == 0)

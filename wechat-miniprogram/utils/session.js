@@ -1,6 +1,6 @@
 const auth = require('./auth');
 const { createDav } = require('./dav');
-const { wxRequest } = require('./wxreq');
+const { wxRequest, wxUploadFile } = require('./wxreq');
 
 function session() {
   return getApp().getSession();
@@ -12,7 +12,12 @@ function authHeader() {
 }
 
 function getDav() {
-  return createDav({ baseUrl: session().baseUrl, authHeader: authHeader(), request: wxRequest });
+  return createDav({
+    baseUrl: session().baseUrl,
+    authHeader: authHeader(),
+    request: wxRequest,
+    uploadFile: wxUploadFile
+  });
 }
 
 module.exports = { session, authHeader, getDav };

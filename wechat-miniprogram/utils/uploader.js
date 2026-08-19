@@ -40,6 +40,7 @@ async function uniquePath(dav, dirPath, name) {
 
 async function uploadFiles({ dav, files, onProgress }) {
   const total = files.length;
+  let done = 0;
   for (let i = 0; i < total; i++) {
     const f = files[i];
     if (f.type === 'video' && f.size > MAX_VIDEO_BYTES) {
@@ -48,8 +49,11 @@ async function uploadFiles({ dav, files, onProgress }) {
     const dir = monthDir(f.time);
     await dav.mkcol('/dav/backup/android/DCIM/' + dir);
     const path = await uniquePath(dav, '/dav/backup/android/DCIM/' + dir, f.name);
-    await dav.put(path, f.arrayBuffer, contentTypeFor(f.name));
-    if (onProgress) onProgress(i + 1, total, f);
+    await dav.upload(path, f.tempFilePath, (percent) => {
+      if (onProgress) onProgress(done, total, percent, f.name);
+    });
+    done += 1;
+    if (onProgress) onProgress(done, total, 100, f.name);
   }
   return total;
 }

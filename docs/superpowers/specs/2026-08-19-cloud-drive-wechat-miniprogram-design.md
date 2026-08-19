@@ -14,6 +14,11 @@
 > 小端口）。微信官方确认合法域名可配置端口（如 `https://域名:8080`），配置后
 > 请求必须严格带该端口。小程序后台 request/downloadFile 合法域名、登录页默认
 > baseUrl、防火墙、lighttpd socket 均使用 `https://cy.gcaiyy.xyz:34443`。
+>
+> **修订（2026-08-19 三改）**：上传从 WebDAV `PUT` 改为 `wx.uploadFile`
+> （multipart）→ dav-bridge `op=upload`，因为 `wx.request` 无上传进度回调；
+> 下载/删除仍走 `wx.downloadFile`/`DELETE`。月视图用原图下载做缩略图网格 +
+> 编辑态多选删除；上传页有真实进度条。服务端限制请求体 64MB。
 
 ## 1. 背景与目标
 

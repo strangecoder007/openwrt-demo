@@ -1,1 +1,7 @@
-.progress { padding: 20rpx; color: #07c160; }
+.file-row { display: flex; align-items: center; justify-content: space-between; padding: 16rpx 0; border-bottom: 1rpx solid #f0f0f0; }
+.file-row:last-child { border-bottom: none; }
+.file-name { font-size: 24rpx; color: #333; }
+.file-remove { font-size: 36rpx; color: #999; padding: 0 12rpx; }
+.progress-card { margin-top: 20rpx; }
+.progress-text { font-size: 24rpx; color: #07c160; margin-bottom: 12rpx; }
+.progress-text.current { color: #666; word-break: break-all; }

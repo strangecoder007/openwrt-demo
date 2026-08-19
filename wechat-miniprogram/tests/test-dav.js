@@ -52,6 +52,37 @@ async function main() {
   let threw = null;
   try { await unauth.propfind('/dav/', 1); } catch (e) { threw = e; }
   assert.strictEqual(threw.code, 401);
+
+  // Upload goes through wx.uploadFile (multipart POST) → op=upload.
+  const uploadCalls = [];
+  const dav2 = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest(() => ({ statusCode: 200, data: { ok: true, items: [] } })),
+    uploadFile: (opts) => {
+      uploadCalls.push(opts);
+      if (opts.onProgressUpdate) opts.onProgressUpdate({ progress: 42 });
+      return Promise.resolve({ statusCode: 201, data: '' });
+    }
+  });
+  const pcts = [];
+  await dav2.upload('/dav/backup/android/DCIM/2026-08/IMG_x.jpg', 'wxfile://tmp.jpg', (p) => pcts.push(p));
+  assert.strictEqual(uploadCalls[0].url, 'https://cy.gcaiyy.xyz/cgi-bin/dav-bridge.cgi?op=upload&path=' + encodeURIComponent('/dav/backup/android/DCIM/2026-08/IMG_x.jpg'));
+  assert.strictEqual(uploadCalls[0].name, 'file');
+  assert.strictEqual(uploadCalls[0].filePath, 'wxfile://tmp.jpg');
+  assert.strictEqual(uploadCalls[0].header.Authorization, 'Basic eDp4');
+  assert.ok(uploadCalls[0].onProgressUpdate);
+  assert.deepStrictEqual(pcts, [42]);
+
+  const failUpload = createDav({
+    baseUrl: 'https://x',
+    authHeader: 'B',
+    request: mockRequest(() => ({ statusCode: 200, data: {} })),
+    uploadFile: () => Promise.resolve({ statusCode: 401, data: '' })
+  });
+  let uploadErr = null;
+  try { await failUpload.upload('/dav/a.jpg', 'wxfile://a.jpg'); } catch (e) { uploadErr = e; }
+  assert.strictEqual(uploadErr.code, 401);
   console.log('test-dav OK');
 }
 
