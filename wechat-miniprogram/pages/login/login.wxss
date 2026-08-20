@@ -21,5 +21,20 @@
   padding: 22rpx 24rpx;
   font-size: 28rpx;
 }
+.remember-row {
+  display: flex;
+  align-items: center;
+  margin: -8rpx 0 28rpx;
+}
+.remember-label {
+  display: flex;
+  align-items: center;
+  font-size: 26rpx;
+  color: #666;
+}
+.remember-label checkbox {
+  transform: scale(0.85);
+  margin-right: 4rpx;
+}
 .register-link { text-align: center; font-size: 26rpx; color: #07c160; margin-top: 24rpx; }
 .version { text-align: center; font-size: 22rpx; color: #c4c9cd; margin-top: 48rpx; }

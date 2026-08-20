@@ -7,16 +7,30 @@ Page({
     baseUrl: 'https://cy.gcaiyy.xyz:34443',
     user: 'backup',
     pass: '',
+    remember: true,
     loading: false,
     version: ''
   },
   onLoad() {
     const s = getApp().getSession();
     if (s) this.setData({ baseUrl: s.baseUrl, user: s.user });
+    // 记住密码：登录页打开时回填上次保存的凭据（含服务器地址/账号/密码）
+    const saved = auth.loadCredential();
+    if (saved) {
+      this.setData({
+        baseUrl: saved.baseUrl || this.data.baseUrl,
+        user: saved.user || this.data.user,
+        pass: saved.pass || '',
+        remember: true
+      });
+    }
     this.setData({ version: getApp().version || '' });
   },
   onInput(e) {
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value });
+  },
+  onToggleRemember(e) {
+    this.setData({ remember: !!e.detail.value });
   },
   onGoRegister() {
     wx.navigateTo({ url: '/pages/register/register' });
@@ -33,6 +47,8 @@ Page({
       const dav = createDav({ baseUrl, authHeader, request: wxRequest });
       await dav.propfind('/dav/backup/android/DCIM/', 1);
       getApp().setSession({ baseUrl, user, pass });
+      if (this.data.remember) auth.saveCredential({ baseUrl, user, pass });
+      else auth.clearCredential();
       wx.showToast({ title: '登录成功', icon: 'success' });
       wx.reLaunch({ url: '/pages/home/home' });
     } catch (e) {

@@ -18,6 +18,13 @@
       <text class="field-label">密码</text>
       <input class="field" placeholder="请输入密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
     </view>
+    <view class="remember-row">
+      <checkbox-group bindchange="onToggleRemember">
+        <label class="remember-label">
+          <checkbox value="remember" checked="{{remember}}" color="#07c160" />记住密码
+        </label>
+      </checkbox-group>
+    </view>
     <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}">{{loading ? '连接中…' : '登 录'}}</button>
     <view class="register-link" bindtap="onGoRegister">没有账号？注册一个</view>
   </view>

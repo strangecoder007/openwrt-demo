@@ -1,4 +1,5 @@
 const KEY = 'davSession';
+const CRED_KEY = 'davSavedCred';
 
 function utf8Bytes(str) {
   const enc = unescape(encodeURIComponent(str));
@@ -31,4 +32,13 @@ function saveSession(s) { if (typeof wx !== 'undefined') wx.setStorageSync(KEY, 
 function loadSession() { return typeof wx !== 'undefined' ? (wx.getStorageSync(KEY) || null) : null; }
 function clearSession() { if (typeof wx !== 'undefined') wx.removeStorageSync(KEY); }
 
-module.exports = { base64Encode, makeAuthHeader, saveSession, loadSession, clearSession };
+// “记住密码”独立于登录会话：登出/会话失效后登录页仍可回填账号密码。
+// 会话（davSession）为了发请求本来就要持有密码；这里只控制表单回填。
+function saveCredential(c) { if (typeof wx !== 'undefined') wx.setStorageSync(CRED_KEY, c); }
+function loadCredential() { return typeof wx !== 'undefined' ? (wx.getStorageSync(CRED_KEY) || null) : null; }
+function clearCredential() { if (typeof wx !== 'undefined') wx.removeStorageSync(CRED_KEY); }
+
+module.exports = {
+  base64Encode, makeAuthHeader, saveSession, loadSession, clearSession,
+  saveCredential, loadCredential, clearCredential
+};
