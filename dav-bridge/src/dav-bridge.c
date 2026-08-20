@@ -56,7 +56,7 @@
 #define MAX_QS_LEN   2048
 #define MAX_PATH_LEN 1024
 #define MAX_FORM_BYTES 4096
-#define MAX_UPLOAD_BYTES (64U * 1024 * 1024)
+#define MAX_UPLOAD_BYTES (256U * 1024 * 1024)
 
 #define CHUNK_SIZE       65536
 #define MAX_HEADER_BYTES 4096
@@ -486,9 +486,9 @@ static bool get_boundary(char *buf, size_t bufsz)
 }
 
 /*
- * Read the whole request body (max MAX_UPLOAD_BYTES) into memory. The
- * board has enough RAM for a 50MB video, and parsing multipart from a
- * single buffer is far less error-prone than a streaming state machine.
+ * Read a small request body (register form data) into memory. Only used
+ * by op=register now; op=upload streams to disk instead, so the 256MB
+ * MAX_UPLOAD_BYTES cap only bounds the streaming upload path.
  */
 static int read_body(char **out, size_t *out_len)
 {
@@ -745,7 +745,7 @@ static int publish_part(const char *tmp, const char *final)
  * so uploads go through this CGI instead of a WebDAV PUT.
  *
  * The body is parsed and written to disk in a streaming fashion (bounded
- * CHUNK_SIZE buffer) instead of buffering up to 64MB per request, so
+ * CHUNK_SIZE buffer) instead of buffering up to 256MB per request, so
  * several concurrent uploads do not exhaust board RAM. The target is
  * created with O_EXCL and auto-suffixed (-1, -2, ...) server-side when the
  * name is taken, closing the check-then-act race the mini program's
