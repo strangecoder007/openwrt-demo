@@ -1,8 +1,8 @@
 const assert = require('assert');
 const {
   MAX_VIDEO_BYTES, monthDir, contentTypeFor, thumbPathFor,
-  previewPathFor, isThumbPath, isPreviewPath, makeImageThumb,
-  makeImagePreview, uniquePath, uploadFiles, makeFileName
+  previewPathFor, previewVideoPathFor, isThumbPath, isPreviewPath, makeImageThumb,
+  makeImagePreview, makeVideoPreview, uniquePath, uploadFiles, makeFileName
 } = require('../utils/uploader');
 
 function testMonthDir() {
@@ -53,10 +53,30 @@ function testPreviewPath() {
   assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/a.preview.jpg'), false);
 }
 
+function testPreviewVideoPath() {
+  assert.strictEqual(
+    previewVideoPathFor('/dav/backup/android/DCIM/2026-08/v.mp4'),
+    '/dav/backup/android/DCIM/2026-08/v.preview.mp4'
+  );
+  assert.strictEqual(
+    previewVideoPathFor('/dav/backup/android/DCIM/2026-08/v.mov'),
+    '/dav/backup/android/DCIM/2026-08/v.preview.mp4'
+  );
+  assert.strictEqual(
+    previewVideoPathFor('/dav/backup/android/DCIM/2026-08/v'),
+    '/dav/backup/android/DCIM/2026-08/v.preview.mp4'
+  );
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/v.preview.mp4'), true);
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/a.preview.jpg'), true);
+  assert.strictEqual(isPreviewPath('/dav/backup/android/DCIM/2026-08/v.mp4'), false);
+  assert.strictEqual(isThumbPath('/dav/backup/android/DCIM/2026-08/v.preview.mp4'), false);
+}
+
 async function testNoDerivedWithoutWx() {
-  // Node 环境没有 wx.compressImage，缩略图/预览图生成返回 null，不影响原图上传
+  // Node 环境没有 wx.compressImage / wx.compressVideo，派生文件生成返回 null
   assert.strictEqual(await makeImageThumb('wxfile://a.jpg'), null);
   assert.strictEqual(await makeImagePreview('wxfile://a.jpg'), null);
+  assert.strictEqual(await makeVideoPreview('wxfile://v.mp4'), null);
 }
 
 function testUniquePath() {
@@ -90,12 +110,42 @@ async function testUploadFiles() {
     'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4',
     'upload:/dav/backup/android/DCIM/2026-08/v.thumb.jpg#wxfile://v_cover.jpg'
   ]);
-  assert.deepStrictEqual(progress, ['0/2@50#0', '1/2@100#0', '1/2@50#1', '2/2@100#1']);
+  assert.deepStrictEqual(progress, ['0/2@50#0', '1/2@100#0', '1/2@50#1', '1/2@0#1', '2/2@100#1']);
 
   const big = { name: 'b.mp4', type: 'video', size: MAX_VIDEO_BYTES + 1, time: Date.now(), tempFilePath: 'wxfile://b.mp4' };
   let err = null;
   try { await uploadFiles({ dav, files: [big], onProgress: () => {} }); } catch (e) { err = e; }
   assert.strictEqual(err.code, 'TOO_LARGE');
+}
+
+async function testUploadFilesVideoPreview() {
+  // 视频上传后应本地压缩一个 .preview.mp4 回传，再传封面；压缩失败（null）静默跳过
+  const log = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => { log.push('upload:' + p + '#' + fp); }
+  };
+  const files = [
+    { name: 'v.mp4', type: 'video', size: 1024, time: new Date(2026, 7, 19).getTime(), tempFilePath: 'wxfile://v.mp4', thumbTempFilePath: 'wxfile://v_cover.jpg' }
+  ];
+  await uploadFiles({
+    dav, files, onProgress: () => {},
+    compressVideo: async (fp) => 'preview-' + fp
+  });
+  assert.deepStrictEqual(log, [
+    'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4',
+    'upload:/dav/backup/android/DCIM/2026-08/v.preview.mp4#preview-wxfile://v.mp4',
+    'upload:/dav/backup/android/DCIM/2026-08/v.thumb.jpg#wxfile://v_cover.jpg'
+  ]);
+
+  // 压缩失败时原片与封面照常上传
+  log.length = 0;
+  await uploadFiles({ dav, files, onProgress: () => {}, compressVideo: async () => null });
+  assert.deepStrictEqual(log, [
+    'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4',
+    'upload:/dav/backup/android/DCIM/2026-08/v.thumb.jpg#wxfile://v_cover.jpg'
+  ]);
 }
 
 async function testUploadFilesWithDerived() {
@@ -153,10 +203,11 @@ async function testUploadFilesServerRename() {
   ]);
 }
 
-testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPreviewPath();
+testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPreviewPath(); testPreviewVideoPath();
 testUniquePath()
   .then(testNoDerivedWithoutWx)
   .then(testUploadFiles)
+  .then(testUploadFilesVideoPreview)
   .then(testUploadFilesWithDerived)
   .then(testUploadFilesServerRename)
   .then(() => console.log('test-uploader OK'));

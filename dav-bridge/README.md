@@ -9,8 +9,9 @@
   - `depth=1`：列出目录下的子项；`depth=0`：只返回该资源本身
   - 资源不存在 → `404 {"ok":false,"error":"not_found"}`
   - 正常 → `200 {"ok":true,"items":[{href,contentLength,contentType,lastModified,isDir}, ...]}`
-  - 目录列举会**跳过 `.thumb.jpg` 结尾的缩略图文件**（深度 0 的单文件查询不受影响，
-    小程序加载缩略图仍可用）；避免缩略图被当成普通文件、被再次生成链条。
+  - 目录列举会**跳过派生文件**（`.thumb.jpg` / `.preview.jpg` / `.preview.mp4`
+    结尾；深度 0 的单文件查询不受影响，小程序加载缩略图/压缩视频仍可用）；
+    避免派生文件被当成普通文件、被再次生成链条。
 - `GET /cgi-bin/dav-bridge.cgi?op=mkdir&path=<url-encoded>`
   - 创建成功 → `201`；已存在 → `405`（与 WebDAV `MKCOL` 语义一致）
 - `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`

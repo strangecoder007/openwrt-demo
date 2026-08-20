@@ -139,11 +139,11 @@ static bool has_dotdot(const char *p)
 	return false;
 }
 
-/* 派生图（.thumb.jpg / .preview.jpg 结尾）不参与目录列举，
+/* 派生文件（.thumb.jpg / .preview.jpg / .preview.mp4 结尾）不参与目录列举，
  * 避免被当作普通文件/再生成链条 */
 static bool is_derived_name(const char *name)
 {
-	static const char *const suffixes[] = { ".thumb.jpg", ".preview.jpg" };
+	static const char *const suffixes[] = { ".thumb.jpg", ".preview.jpg", ".preview.mp4" };
 	size_t len = strlen(name);
 	size_t n = sizeof(suffixes) / sizeof(suffixes[0]);
 	size_t i;

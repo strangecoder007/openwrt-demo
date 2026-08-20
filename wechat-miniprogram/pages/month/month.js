@@ -1,5 +1,5 @@
 const { getDav, authHeader } = require('../../utils/session');
-const { thumbPathFor, previewPathFor, isThumbPath, isPreviewPath, makeImageThumb, makeImagePreview } = require('../../utils/uploader');
+const { thumbPathFor, previewPathFor, previewVideoPathFor, isThumbPath, isPreviewPath, makeImageThumb, makeImagePreview } = require('../../utils/uploader');
 const { cacheKeyForPath, createThumbCache, createWxFs } = require('../../utils/thumbcache');
 const { formatBytes } = require('../../utils/format');
 
@@ -46,11 +46,13 @@ Page({
         .map((f) => {
           const name = f.href.split('/').filter(Boolean).pop();
           const info = dayInfo(name, f.lastModified);
+          const isVideo = f.contentType.startsWith('video/');
           return {
             name,
             size: f.contentLength,
-            type: f.contentType.startsWith('video/') ? 'video' : 'image',
+            type: isVideo ? 'video' : 'image',
             path: f.href,
+            previewVideoPath: isVideo ? previewVideoPathFor(f.href) : '',
             lastModified: f.lastModified,
             dayKey: info.key,
             dayLabel: info.label,
@@ -168,7 +170,12 @@ Page({
       return;
     }
     wx.showLoading({ title: '下载中' });
-    this.download(f.path).then((res) => {
+    const dav = getDav();
+    // 优先播服务端已有的 .preview.mp4 压缩版（流量小）；老视频没有时回退原片
+    const target = (f.previewVideoPath
+      ? dav.propfind(f.previewVideoPath, 0).then((r) => (r && r.length ? f.previewVideoPath : f.path)).catch(() => f.path)
+      : Promise.resolve(f.path));
+    target.then((p) => this.download(p)).then((res) => {
       wx.hideLoading();
       if (res.statusCode !== 200) { wx.showToast({ title: '下载失败 ' + res.statusCode, icon: 'none' }); return; }
       this.setData({ videoSrc: res.tempFilePath, playingName: f.name });
@@ -222,6 +229,7 @@ Page({
         // 原图删掉时服务端缩略图/预览图一起删，本地缓存同步清
         try { await dav.del(thumbPathFor(p)); } catch (e) { /* 没有缩略图或已删 */ }
         try { await dav.del(previewPathFor(p)); } catch (e) { /* 没有预览图或已删 */ }
+        try { await dav.del(previewVideoPathFor(p)); } catch (e) { /* 没有视频压缩版或已删 */ }
         thumbCache.remove(cacheKeyForPath(thumbPathFor(p)));
         thumbCache.remove(cacheKeyForPath(previewPathFor(p)));
       }

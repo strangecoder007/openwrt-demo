@@ -66,9 +66,12 @@ ipk（含 register）装到板子，`webdav.passwd` 属主为 `http`，lighttpd 
 - `.preview.jpg`：1280px 预览图（100～300KB），点击全屏预览用，比原图小一个量级。
 
 老文件没有派生图时首次使用会自动下载原图、压缩回传一张，之后秒开。
-**视频**：`wx.chooseMedia` 自带封面（`thumbTempFilePath`），上传时一并传为
-`.thumb.jpg` 封面，网格显示封面 + ▶ 角标；老视频没有封面时显示 ▶ 占位
-（手机端无法截帧，服务端无 ffmpeg）。
+**视频**：
+- `wx.chooseMedia` 自带封面（`thumbTempFilePath`），上传时一并传为
+  `.thumb.jpg` 封面，网格显示封面 + ▶ 角标；
+- 再用 `wx.compressVideo` 本地压缩一份 `.preview.mp4`（medium 质量）回传；
+  点视频时优先播放压缩版（流量小），老视频没有压缩版时回退播放原片；
+- 老视频没有封面时显示 ▶ 占位（手机端无法截帧，服务端无 ffmpeg）。
 
 ## 下载与保存
 
@@ -78,9 +81,10 @@ ipk（含 register）装到板子，`webdav.passwd` 属主为 `http`，lighttpd 
 - 点图片：下载**当天**全部 `.preview.jpg`（并发 3，显示“加载预览 x/y”；老图
   没有预览图时首次下载原图压缩生成回传）→
   `wx.previewImage` 全屏预览，**可左右滑动**；
-- 点视频：下载临时文件 → 播放；
+- 点视频：优先探测/下载服务端 `.preview.mp4` 压缩版 → 播放；老视频没有
+  压缩版时回退下载原片；
 - 月视图支持下拉刷新（重新拉列表 + 缩略图，带防重入）；
 - 编辑模式多选 → “下载(n)”：把选中的原图/视频**保存到手机相册**
   （`wx.saveImageToPhotosAlbum` / `wx.saveVideoToPhotosAlbum`，首次需授权相册权限）；
   确认框显示文件数与总大小，保存过程显示“保存中 x/n · 已保存 Y MB”；
-  删除时服务端 `.thumb.jpg`/`.preview.jpg` 与本地缓存一并清除。
+  删除时服务端 `.thumb.jpg`/`.preview.jpg`/`.preview.mp4` 与本地缓存一并清除。

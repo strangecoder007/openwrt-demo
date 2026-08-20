@@ -36,13 +36,19 @@ function previewPathFor(path) {
   return path + '.preview.jpg';
 }
 
-// 缩略图/预览图（含历史 bug 产生的 .thumb.thumb*.jpg 链）不参与列表与计数
+// 视频压缩版约定：同目录同名，扩展名换成 .preview.mp4（供点视频时优先播放）
+function previewVideoPathFor(path) {
+  if (/\.[^./]+$/.test(path)) return path.replace(/\.[^./]+$/, '.preview.mp4');
+  return path + '.preview.mp4';
+}
+
+// 缩略图/预览图/视频压缩版（含历史 bug 产生的 .thumb.thumb*.jpg 链）不参与列表与计数
 function isThumbPath(path) {
   return /\.thumb\.jpg$/i.test(path);
 }
 
 function isPreviewPath(path) {
-  return /\.preview\.jpg$/i.test(path);
+  return /\.preview\.(jpg|mp4)$/i.test(path);
 }
 
 // 本地压缩生成缩略图（上传时/首次浏览时调用）；不支持时返回 null
@@ -73,6 +79,20 @@ function makeImagePreview(src) {
   });
 }
 
+// 本地压缩生成视频压缩版（medium 质量，体积小、手机上耗时可接受）；
+// 不支持 wx.compressVideo（基础库 < 2.11.0）时返回 null，静默跳过
+function makeVideoPreview(src) {
+  if (typeof wx === 'undefined' || !wx.compressVideo) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    wx.compressVideo({
+      src,
+      quality: 'medium',
+      success: (res) => resolve(res.tempFilePath || null),
+      fail: () => resolve(null)
+    });
+  });
+}
+
 async function uniquePath(dav, dirPath, name) {
   let candidate = name;
   let n = 1;
@@ -87,7 +107,7 @@ async function uniquePath(dav, dirPath, name) {
   }
 }
 
-async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview }) {
+async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview, compressVideo = makeVideoPreview }) {
   const total = files.length;
   let done = 0;
   for (let i = 0; i < total; i++) {
@@ -114,9 +134,18 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
       if (preview) {
         try { await dav.upload(previewPathFor(path), preview); } catch (e) { /* 预览图失败不影响原图 */ }
       }
-    } else if (f.thumbTempFilePath) {
+    } else if (f.type === 'video') {
+      // 本地压缩一个 .preview.mp4，点视频时优先播放它，流量小很多；
+      // 压缩期间发一个 0% 进度回调，避免进度条卡在上一个文件的 100%
+      if (onProgress) onProgress(done, total, 0, f.name, done);
+      const preview = await compressVideo(f.tempFilePath);
+      if (preview) {
+        try { await dav.upload(previewVideoPathFor(path), preview); } catch (e) { /* 压缩版失败不影响原视频 */ }
+      }
       // 视频用 chooseMedia 自带的封面做缩略图（手机端无法截帧）
-      try { await dav.upload(thumbPathFor(path), f.thumbTempFilePath); } catch (e) { /* 封面失败不影响原视频 */ }
+      if (f.thumbTempFilePath) {
+        try { await dav.upload(thumbPathFor(path), f.thumbTempFilePath); } catch (e) { /* 封面失败不影响原视频 */ }
+      }
     }
     done += 1;
     if (onProgress) onProgress(done, total, 100, f.name, done - 1);
@@ -126,6 +155,6 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
 
 module.exports = {
   MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor,
-  thumbPathFor, previewPathFor, isThumbPath, isPreviewPath,
-  makeImageThumb, makeImagePreview, uniquePath, uploadFiles
+  thumbPathFor, previewPathFor, previewVideoPathFor, isThumbPath, isPreviewPath,
+  makeImageThumb, makeImagePreview, makeVideoPreview, uniquePath, uploadFiles
 };
