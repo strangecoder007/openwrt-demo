@@ -54,10 +54,10 @@ Page({
             path: f.href,
             previewVideoPath: isVideo ? previewVideoPathFor(f.href) : '',
             // 服务端 ls 顺带 stat 派生兄弟，省掉每张图一次 depth=0 探测；
-            // 旧版桥没有这些字段（undefined）时走原探测逻辑兼容
-            hasThumb: !!f.hasThumb,
-            hasPreview: !!f.hasPreview,
-            hasPreviewVideo: !!f.hasPreviewVideo,
+            // 旧版桥没有这些字段时为 undefined，fetchDerived 走原探测逻辑兼容
+            hasThumb: f.hasThumb,
+            hasPreview: f.hasPreview,
+            hasPreviewVideo: f.hasPreviewVideo,
             lastModified: f.lastModified,
             dayKey: info.key,
             dayLabel: info.label,
