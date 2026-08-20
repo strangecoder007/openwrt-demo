@@ -53,6 +53,11 @@ Page({
             type: isVideo ? 'video' : 'image',
             path: f.href,
             previewVideoPath: isVideo ? previewVideoPathFor(f.href) : '',
+            // 服务端 ls 顺带 stat 派生兄弟，省掉每张图一次 depth=0 探测；
+            // 旧版桥没有这些字段（undefined）时走原探测逻辑兼容
+            hasThumb: !!f.hasThumb,
+            hasPreview: !!f.hasPreview,
+            hasPreviewVideo: !!f.hasPreviewVideo,
             lastModified: f.lastModified,
             dayKey: info.key,
             dayLabel: info.label,
@@ -93,17 +98,29 @@ Page({
   },
   // 派生图通用逻辑：优先取服务端缩略图/预览图；老文件没有时下载原图、
   // 压缩一张回传并缓存；视频无封面保持占位
-  async fetchDerived(f, dav, derivedPath, makeFn) {
+  async fetchDerived(f, dav, derivedPath, makeFn, hasDerived) {
     const ck = cacheKeyForPath(derivedPath);
     const cached = thumbCache.get(ck);
     if (cached) return cached;
-    try {
-      const found = await dav.propfind(derivedPath, 0);
-      if (found && found.length) {
+    if (hasDerived) {
+      // 服务端确认派生图存在：直接下载，不再发探测请求
+      try {
         const res = await this.download(derivedPath);
         if (res.statusCode === 200) return thumbCache.put(ck, res.tempFilePath);
-      }
-    } catch (e) { console.warn('[month] derived miss', derivedPath, e); /* 继续走原图 */ }
+      } catch (e) { console.warn('[month] derived download fail', derivedPath, e); }
+      // 标记有但下载失败：视频直接放弃，图片继续走原图生成兜底
+      if (f.type === 'video') return null;
+    } else if (hasDerived === undefined) {
+      // 旧版桥没有 hasXxx 字段：保留 depth=0 探测兼容
+      try {
+        const found = await dav.propfind(derivedPath, 0);
+        if (found && found.length) {
+          const res = await this.download(derivedPath);
+          if (res.statusCode === 200) return thumbCache.put(ck, res.tempFilePath);
+        }
+      } catch (e) { console.warn('[month] derived miss', derivedPath, e); /* 继续走原图 */ }
+    }
+    // hasDerived === false：服务端确认没有派生图，直接走原图生成
     if (f.type === 'video') return null;
     const full = await this.download(f.path);
     if (full.statusCode !== 200) return null;
@@ -115,10 +132,10 @@ Page({
     return full.tempFilePath;
   },
   fetchThumb(f, dav) {
-    return this.fetchDerived(f, dav, thumbPathFor(f.path), makeImageThumb);
+    return this.fetchDerived(f, dav, thumbPathFor(f.path), makeImageThumb, f.hasThumb);
   },
   fetchPreview(f, dav) {
-    return this.fetchDerived(f, dav, previewPathFor(f.path), makeImagePreview);
+    return this.fetchDerived(f, dav, previewPathFor(f.path), makeImagePreview, f.hasPreview);
   },
   async loadThumbs(files) {
     const dav = getDav();
@@ -171,10 +188,19 @@ Page({
     }
     wx.showLoading({ title: '下载中' });
     const dav = getDav();
-    // 优先播服务端已有的 .preview.mp4 压缩版（流量小）；老视频没有时回退原片
-    const target = (f.previewVideoPath
-      ? dav.propfind(f.previewVideoPath, 0).then((r) => (r && r.length ? f.previewVideoPath : f.path)).catch(() => f.path)
-      : Promise.resolve(f.path));
+    // 优先播服务端已有的 .preview.mp4 压缩版（流量小）；老视频没有时回退原片。
+    // 新版桥 ls 直接带 hasPreviewVideo 标记，省掉一次 depth=0 探测；旧版桥
+    // 字段为 undefined 时保留探测兼容。
+    let target;
+    if (f.hasPreviewVideo === true) {
+      target = Promise.resolve(f.previewVideoPath);
+    } else if (f.hasPreviewVideo === undefined && f.previewVideoPath) {
+      target = dav.propfind(f.previewVideoPath, 0)
+        .then((r) => (r && r.length ? f.previewVideoPath : f.path))
+        .catch(() => f.path);
+    } else {
+      target = Promise.resolve(f.path);
+    }
     target.then((p) => this.download(p)).then((res) => {
       wx.hideLoading();
       if (res.statusCode !== 200) { wx.showToast({ title: '下载失败 ' + res.statusCode, icon: 'none' }); return; }

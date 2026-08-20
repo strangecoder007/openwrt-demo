@@ -1,5 +1,5 @@
 const { getDav } = require('../../utils/session');
-const { isThumbPath } = require('../../utils/uploader');
+const { isThumbPath, isPreviewPath } = require('../../utils/uploader');
 
 Page({
   data: { months: [], loading: false },
@@ -14,14 +14,21 @@ Page({
       const dav = getDav();
       const root = '/dav/backup/android/DCIM/';
       const items = await dav.propfind(root, 1) || [];
+      const dirs = items.filter((it) => it.isDir && it.href !== root);
+      // 逐月数文件是 N+1 次 propfind，串行在公网 IPv6 下太慢；并发 4 路拉取
+      const CONC = 4;
       const months = [];
-      for (const it of items) {
-        if (!it.isDir || it.href === root) continue;
-        const name = it.href.split('/').filter(Boolean).pop();
-        const files = await dav.propfind(it.href, 1) || [];
-        const count = files.filter((f) => !f.isDir && !isThumbPath(f.href)).length;
-        months.push({ name, count, path: it.href });
-      }
+      let i = 0;
+      const worker = async () => {
+        while (i < dirs.length) {
+          const it = dirs[i++];
+          const name = it.href.split('/').filter(Boolean).pop();
+          const files = await dav.propfind(it.href, 1) || [];
+          const count = files.filter((f) => !f.isDir && !isThumbPath(f.href) && !isPreviewPath(f.href)).length;
+          months.push({ name, count, path: it.href });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONC, dirs.length) }, () => worker()));
       months.sort((a, b) => (a.name < b.name ? 1 : -1));
       this.setData({ months });
     } catch (e) {

@@ -62,6 +62,7 @@
 #define MAX_HEADER_BYTES 4096
 #define MAX_PART_LINE    256
 #define MAX_NAME_TRIES   1000
+#define STALE_PART_SECS  3600
 
 /* RENAME_NOREPLACE (Linux >= 3.15; the board runs 4.1.15) */
 #ifndef RENAME_NOREPLACE
@@ -155,6 +156,16 @@ static bool is_derived_name(const char *name)
 			return true;
 	}
 	return false;
+}
+
+/* 上传中间文件 <name>.part：不参与目录列举，避免中断的上传残留被当普通文件 */
+static bool is_part_name(const char *name)
+{
+	static const char suf[] = ".part";
+	size_t len = strlen(name);
+	size_t slen = sizeof(suf) - 1;
+
+	return len >= slen && strcasecmp(name + len - slen, suf) == 0;
 }
 
 /*
@@ -292,6 +303,25 @@ static void print_last_modified(time_t t)
 	printf("%s", buf);
 }
 
+/*
+ * 派生文件路径：把最后一个扩展名替换成 suffix（IMG_1.jpg -> IMG_1.thumb.jpg）。
+ * 与 build_candidate 同一套“扩展名定位”规则，保证客户端与服务端路径约定一致。
+ */
+static int derived_path(const char *fs, const char *suffix, char *out, size_t outsz)
+{
+	const char *slash = strrchr(fs, '/');
+	const char *dot = strrchr(fs, '.');
+	size_t base_len;
+
+	if (dot && (!slash || dot > slash))
+		base_len = (size_t)(dot - fs);
+	else
+		base_len = strlen(fs);
+	if (snprintf(out, outsz, "%.*s%s", (int)base_len, fs, suffix) >= (int)outsz)
+		return -1;
+	return 0;
+}
+
 static bool uri_safe(unsigned char c)
 {
 	if (isalnum(c))
@@ -331,6 +361,29 @@ static void print_item(const char *fs_path, const char *name,
 		       const struct stat *st)
 {
 	bool is_dir = S_ISDIR(st->st_mode);
+	bool has_thumb = false;
+	bool has_preview = false;
+	bool has_preview_video = false;
+
+	/*
+	 * 顺便 stat 派生兄弟文件，把 hasThumb/hasPreview/hasPreviewVideo 带进
+	 * JSON：客户端拿到列表后就能直接决定下载哪个派生图，省掉每张图的
+	 * depth=0 存在性探测请求（服务端两次 stat 远便宜于一次网络往返）。
+	 */
+	if (!is_dir && !is_derived_name(name)) {
+		char dp[PATH_MAX];
+		struct stat ds;
+
+		if (derived_path(fs_path, ".thumb.jpg", dp, sizeof(dp)) == 0 &&
+		    stat(dp, &ds) == 0)
+			has_thumb = true;
+		if (derived_path(fs_path, ".preview.jpg", dp, sizeof(dp)) == 0 &&
+		    stat(dp, &ds) == 0)
+			has_preview = true;
+		if (derived_path(fs_path, ".preview.mp4", dp, sizeof(dp)) == 0 &&
+		    stat(dp, &ds) == 0)
+			has_preview_video = true;
+	}
 
 	printf("{\"href\":");
 	print_href(fs_path, is_dir);
@@ -344,7 +397,11 @@ static void print_item(const char *fs_path, const char *name,
 		printf("%s", content_type_for(name));
 	printf("\",\"lastModified\":\"");
 	print_last_modified(st->st_mtime);
-	printf("\",\"isDir\":%s}", is_dir ? "true" : "false");
+	printf("\",\"isDir\":%s", is_dir ? "true" : "false");
+	printf(",\"hasThumb\":%s,\"hasPreview\":%s,\"hasPreviewVideo\":%s}",
+	       has_thumb ? "true" : "false",
+	       has_preview ? "true" : "false",
+	       has_preview_video ? "true" : "false");
 }
 
 static int op_ls(const char *path, int depth)
@@ -402,7 +459,7 @@ static int op_ls(const char *path, int depth)
 			if (strcmp(e->d_name, ".") == 0 ||
 			    strcmp(e->d_name, "..") == 0)
 				continue;
-			if (is_derived_name(e->d_name))
+			if (is_derived_name(e->d_name) || is_part_name(e->d_name))
 				continue;
 			if (snprintf(child, sizeof(child), "%s/%s", fs,
 				     e->d_name) >= (int)sizeof(child))
@@ -488,9 +545,11 @@ static bool get_boundary(char *buf, size_t bufsz)
 /*
  * Read a small request body (register form data) into memory. Only used
  * by op=register now; op=upload streams to disk instead, so the 512MB
- * MAX_UPLOAD_BYTES cap only bounds the streaming upload path.
+ * MAX_UPLOAD_BYTES cap only bounds the streaming upload path. max 由调用方
+ * 传入（register 用 MAX_FORM_BYTES），在 malloc 之前就拦下超大请求，避免
+ * 一个 Content-Length: 300MB 的恶意/异常表单把板子内存直接吃满。
  */
-static int read_body(char **out, size_t *out_len)
+static int read_body(char **out, size_t *out_len, size_t max)
 {
 	const char *cl = getenv("CONTENT_LENGTH");
 	char buf[16384];
@@ -503,7 +562,7 @@ static int read_body(char **out, size_t *out_len)
 	if (cl) {
 		unsigned long long want = strtoull(cl, NULL, 10);
 
-		if (want > MAX_UPLOAD_BYTES)
+		if (want > max)
 			return 413;
 		if (want == 0)
 			return 0;
@@ -524,7 +583,7 @@ static int read_body(char **out, size_t *out_len)
 		chunk = fread(buf, 1, sizeof(buf), stdin);
 		if (chunk == 0)
 			break;
-		if (total + chunk > MAX_UPLOAD_BYTES) {
+		if (total + chunk > max) {
 			free(*out);
 			*out = NULL;
 			return 413;
@@ -740,6 +799,21 @@ static int publish_part(const char *tmp, const char *final)
 }
 
 /*
+ * 清掉“看起来是残骸”的 .part：存在且超过一小时。刚创建的是并发上传正在写，
+ * 不能动；一小时的窗口足够覆盖慢上行的大文件，也不会把正常上传误删。
+ */
+static bool remove_stale_part(const char *path)
+{
+	struct stat st;
+
+	if (stat(path, &st) != 0)
+		return false;
+	if (time(NULL) - st.st_mtime < STALE_PART_SECS)
+		return false;
+	return unlink(path) == 0;
+}
+
+/*
  * op=upload&path=<url-encoded>  (POST, multipart/form-data, part name
  * "file"). WeChat wx.uploadFile has onProgressUpdate, unlike wx.request,
  * so uploads go through this CGI instead of a WebDAV PUT.
@@ -820,6 +894,14 @@ static int op_upload(const char *path)
 		if (errno != EEXIST)
 			return out_error(500, "Internal Server Error",
 					 strerror(errno));
+		/* 同名 .part 被占：若是上次中断的残留（超一小时）清掉重试同名，
+		 * 避免正式文件还没发布、名字却被残骸占着导致被迫跳到 -N 后缀；
+		 * 刚创建的是并发上传在写，不动它，继续下一个候选名。 */
+		if (remove_stale_part(tmp)) {
+			fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0644);
+			if (fd >= 0)
+				break;
+		}
 	}
 	if (fd < 0)
 		return out_error(409, "Conflict", "name space exhausted");
@@ -1064,7 +1146,7 @@ static int op_register(void)
 	if (!caller || strcmp(caller, ADMIN_USER) != 0)
 		return out_error(403, "Forbidden", "admin only");
 
-	r = read_body(&body, &body_len);
+	r = read_body(&body, &body_len, MAX_FORM_BYTES);
 	if (r == 413)
 		return out_error(413, "Payload Too Large", "too large");
 	if (r == 500)

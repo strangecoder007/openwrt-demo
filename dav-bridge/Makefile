@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=dav-bridge
-PKG_RELEASE:=8
+PKG_RELEASE:=9
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Local <root@localhost>

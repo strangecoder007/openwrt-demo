@@ -8,10 +8,13 @@
 - `GET /cgi-bin/dav-bridge.cgi?op=ls&path=<url-encoded>&depth=0|1`
   - `depth=1`：列出目录下的子项；`depth=0`：只返回该资源本身
   - 资源不存在 → `404 {"ok":false,"error":"not_found"}`
-  - 正常 → `200 {"ok":true,"items":[{href,contentLength,contentType,lastModified,isDir}, ...]}`
+  - 正常 → `200 {"ok":true,"items":[{href,contentLength,contentType,lastModified,isDir,hasThumb,hasPreview,hasPreviewVideo}, ...]}`
   - 目录列举会**跳过派生文件**（`.thumb.jpg` / `.preview.jpg` / `.preview.mp4`
-    结尾；深度 0 的单文件查询不受影响，小程序加载缩略图/压缩视频仍可用）；
-    避免派生文件被当成普通文件、被再次生成链条。
+    结尾）和上传中间文件（`.part`；深度 0 的单文件查询不受影响，小程序加载
+    缩略图/压缩视频仍可用）；避免派生文件被当成普通文件、被再次生成链条。
+  - 每个文件项额外带 `hasThumb` / `hasPreview` / `hasPreviewVideo` 布尔标记
+    （服务端 `stat` 派生兄弟文件得出）：小程序拿到列表即可决定下载哪个派生图，
+    省掉每张图一次 `depth=0` 存在性探测请求。
 - `GET /cgi-bin/dav-bridge.cgi?op=mkdir&path=<url-encoded>`
   - 创建成功 → `201`；已存在 → `405`（与 WebDAV `MKCOL` 语义一致）
 - `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`
@@ -30,6 +33,15 @@
 `onProgressUpdate`，但它只支持 multipart，所以桥提供 `op=upload`）；
 下载/删除仍是小程序合法方法（`GET`/`DELETE`），直接由 lighttpd mod_webdav 处理。
 
+## 中断上传的 `.part` 残骸（PKG_RELEASE=9）
+
+- 上传先写 `<name>.part` 再原子发布；CGI 被 kill / 板子掉电 / lighttpd 超时杀
+  进程时，`.part` 会残留在 SD 卡上。
+- 目录列举已过滤 `.part`，不会出现半截文件或让文件数翻倍；
+- 同名 `.part` 被占时，CGI 会检查它的 mtime：超过 1 小时视为上次中断的残骸，
+  清掉后重试同名，否则（并发上传正在写）跳到下一个 `-N` 后缀。残留的 `.part`
+  不会永久占住名字。
+
 ## 认证与安全
 
 - Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`auth.require` 里对
@@ -43,6 +55,9 @@
 - 上传请求体上限 512MB 由 CGI 自身保证（超限 413），客户端（小程序）限制
   500MB/视频；lighttpd 1.4.54 的 `server.max-request-size` 默认 0（不限），
   Web 服务器不构成瓶颈。
+- `op=register` 请求体上限 4KB（`MAX_FORM_BYTES`），且在 `malloc` 之前就按
+  `Content-Length` 拦截（PKG_RELEASE=9），恶意/异常的超大表单不会先把板子
+  内存吃满再被拒绝。
 
 ## 并发说明（2026-08-20）
 
