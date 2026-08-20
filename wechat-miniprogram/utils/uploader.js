@@ -1,4 +1,4 @@
-const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -93,7 +93,7 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
   for (let i = 0; i < total; i++) {
     const f = files[i];
     if (f.type === 'video' && f.size > MAX_VIDEO_BYTES) {
-      throw Object.assign(new Error('视频超过 200MB 限制: ' + f.name), { code: 'TOO_LARGE', file: f });
+      throw Object.assign(new Error('视频超过 500MB 限制: ' + f.name), { code: 'TOO_LARGE', file: f });
     }
     const dir = monthDir(f.time);
     await dav.mkcol('/dav/backup/android/DCIM/' + dir);

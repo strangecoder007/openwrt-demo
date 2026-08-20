@@ -16,7 +16,7 @@
 - `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`
   - multipart/form-data，文件字段名 `file`（微信 `wx.uploadFile` 默认字段名）
   - 创建成功 → `201 {"ok":true,"items":[],"path":"/dav/.../<最终文件名>"}`；
-    超过 256MB → `413`；格式错误 → `400`
+    超过 512MB → `413`；格式错误 → `400`
   - **服务端原子命名（PKG_RELEASE=5）**：目标名以 `O_EXCL` 方式创建
     `<name>.part`，重名自动加 `-1`、`-2` 后缀（插在扩展名之前），再
     `renameat2(RENAME_NOREPLACE)` 发布；并发的同名上传不会互相覆盖，
@@ -39,8 +39,8 @@
   防 symlink 逃逸；
 - 拒绝 `%00`，路径参数上限 1024 字节；
 - `ls`/`mkdir` 只接受 `GET`，`upload` 只接受 `POST`；`REMOTE_USER` 为空直接 401。
-- 上传请求体上限 256MB 由 CGI 自身保证（超限 413），客户端（小程序）限制
-  200MB/视频；lighttpd 1.4.54 的 `server.max-request-size` 默认 0（不限），
+- 上传请求体上限 512MB 由 CGI 自身保证（超限 413），客户端（小程序）限制
+  500MB/视频；lighttpd 1.4.54 的 `server.max-request-size` 默认 0（不限），
   Web 服务器不构成瓶颈。
 
 ## 并发说明（2026-08-20）

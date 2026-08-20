@@ -73,7 +73,7 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
       filePath,
       name: 'file',
       header: { Authorization: authHeader },
-      // 200MB 视频在慢上行下可能超过 2 分钟；微信 uploadFile 超时上限 10 分钟。
+      // 500MB 视频在慢上行下需要很长时间；微信 uploadFile 超时上限 10 分钟。
       timeout: 600000,
       // wx 的 onProgressUpdate 收到的是 {progress, totalBytesSent, ...} 对象
       onProgressUpdate: onProgress ? (p) => {

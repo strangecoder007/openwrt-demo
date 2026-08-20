@@ -1,6 +1,6 @@
 # 云盘微信小程序（一期）
 
-手机照片/小视频（≤200MB）经 WebDAV 备份到板子（lighttpd mod_webdav），按“年-月”时间线浏览、预览、删除。
+手机照片/小视频（≤500MB）经 WebDAV 备份到板子（lighttpd mod_webdav），按“年-月”时间线浏览、预览、删除。
 
 > **板子依赖**：微信真机 `wx.request` 不支持 `PROPFIND`/`MKCOL`（开发者工具
 > 碰巧放行，真机报 `network argv error`），所以文件列表与建目录走板子上的

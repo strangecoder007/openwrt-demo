@@ -2,7 +2,7 @@
   <view class="section-title">选择文件</view>
   <view class="btn-row">
     <button class="btn-outline" bindtap="pickImage" disabled="{{uploading}}">📷 选照片（最多 9 张）</button>
-    <button class="btn-outline" bindtap="pickVideo" disabled="{{uploading}}">🎬 选视频（≤200MB）</button>
+    <button class="btn-outline" bindtap="pickVideo" disabled="{{uploading}}">🎬 选视频（≤500MB）</button>
   </view>
 
   <view class="card" wx:if="{{files.length}}">
