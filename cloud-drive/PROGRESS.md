@@ -1,5 +1,34 @@
 # 云盘项目总结（2026-08-20）
 
+## 更新记录（2026-08-20，小程序 v20260820.6）
+
+1. **IPv6 切网登录不可达**：小程序 `utils/wxreq.js` 对网络层失败自动重试
+   （请求 3 次、间隔递增；上传仅在“连接未建立”时重试 2 次避免重复文件），
+   登录页区分 401 / 不可达 / 超时；从无 IPv6 网络切到有 IPv6 的网络后无需
+   等缓存过期或重启小程序即可登录。
+2. **记住密码**：登录页新增“记住密码”（默认开），服务器/账号/密码存独立
+   storage `davSavedCred`，下次打开自动回填；取消勾选登录即清除。
+3. **视频上限 500MB**：客户端 `MAX_VIDEO_BYTES = 500MB`，服务端 CGI 请求体
+   上限 512MB（超限 413）；SD 卡 vfat 单文件 4GB 上限不受影响。
+4. **大视频 71% HTTP 500（已修复）**：lighttpd 1.4 先把 POST body 落
+   `server.upload-dirs` 临时文件，默认 `/tmp` 是 tmpfs（248MB），427MB 视频
+   传到 ~240MB 即写临时文件失败回 500。修复：
+   `server.upload-dirs = ( "/mnt/sd/.upload", "/tmp" )` +
+   `server.stream-request-body = 1`（流式喂 CGI，不再落完整临时文件）；
+   300MB LAN 实测通过（md5 一致、/tmp 占用不涨）。
+5. **视频压缩版 `.preview.mp4`（新增）**：手机端 `wx.compressVideo`
+   （quality=medium）本地压缩，上传顺序 原片 → 压缩版 → 封面（`.thumb.jpg`）；
+   月视图点视频先 `op=ls&depth=0` 探测压缩版，存在则播放压缩版、不存在回退
+   原片（老视频）；dav-bridge `is_derived_name` 与客户端 `isPreviewPath`
+   两端过滤派生文件防列表翻倍；删除连带清理；保存到相册仍下载原片。
+   dav-bridge PKG_RELEASE 8，小程序 v20260820.6，单测全绿。
+   **部署状态：代码已提交 GitHub，板子待重编重装 dav-bridge 8 + 上传体验版。**
+6. **ddns-go IPv4 已关闭**（用户要求：光猫无管理员、无法端口转发），A 记录
+   不再维护；公网入口仅 IPv6:34443。
+   ⚠️ **待处理**：现场核对 `/root/.ddns_go_config.yaml` 发现 `ipv6.enable`
+   当前也是 `false`（11:30 重启后日志已无 IPv6 检查），需恢复为 `true` 并
+   重启 ddns-go，否则 IPv6 前缀变化后 AAAA 不刷新、公网入口失效。
+
 ## 一、项目目标
 
 把手机里的照片/视频备份到家里的 OpenWrt 板子（正点原子 i.MX6ULL）SD 卡，
@@ -134,4 +163,8 @@
   下载显示大小、证书板子自动续期，全部验证正常；
 - dav-bridge 新版（含 `ADMIN_USER` 管理员检查）已装板子：普通账号调注册
   返回 403，管理员可注册；
-- 板子 `webdav.passwd` 当前用户：backup、yanzi。
+- 板子 `webdav.passwd` 当前用户：backup、yanzi；
+- 视频压缩版 `.preview.mp4` 功能代码已提交（dav-bridge 8 / v20260820.6），
+  板子尚未部署；
+- ⚠️ ddns-go `ipv6.enable` 现为 `false`（关闭 IPv4 时被误关），AAAA 已停止
+  刷新，待恢复。

@@ -4,6 +4,22 @@
 `/mnt/sd`。手机 FolderSync 经 WireGuard 隧道把 `DCIM/Camera` 单向备份到
 `/mnt/sd/backup/android/DCIM`。
 
+## 本次更新（2026-08-20 会话汇总）
+
+- **登录/上传链路增强**：小程序 `utils/wxreq.js` 网络层失败自动重试（从无
+  IPv6 网络切到有 IPv6 的网络后不再必挂）、登录页“记住密码”（`davSavedCred`）、
+  视频上限 500MB；
+- **大视频 500 修复**：lighttpd
+  `server.upload-dirs = ( "/mnt/sd/.upload", "/tmp" )` +
+  `server.stream-request-body = 1`（本目录 `lighttpd.conf` 已同步），
+  300MB 实测通过；
+- **视频压缩版**：手机端 `wx.compressVideo`（medium）本地压缩 `.preview.mp4`
+  回传，点视频优先播放压缩版、老视频回退原片；dav-bridge 过滤 `.preview.mp4`
+  （PKG_RELEASE 8），小程序 v20260820.6；**板子待部署**（重编重装 + 上传
+  体验版）；
+- **ddns-go IPv4 已关闭**（光猫无管理员、无法端口转发），公网仅 IPv6。
+  ⚠️ 现场核对 `ipv6.enable` 也被置为 `false`，待恢复（否则 AAAA 不再刷新）。
+
 ## 监听与认证
 
 - `10.10.10.1:8080`（wg0，HTTP）
@@ -66,14 +82,14 @@
 ## 公网双栈与 DNS（2026-08-20）
 
 - ddns-go（`/root/.ddns_go_config.yaml`，init 脚本 `/etc/init.d/ddns-go`）
-  同时维护 **A + AAAA**：
-  - IPv4：`gettype: url`（myip4.ipip.net 等探测公网 IPv4），域名
-    `cy.gcaiyy.xyz` → 家里路由器公网 IP（当前 `101.204.11.54`）；
+  维护 **AAAA**（刷新周期 `-f 60`）：
+  - **IPv4 已关闭**（2026-08-20 按用户要求：光猫无管理员、无法端口转发），
+    A 记录不再维护，`cy.gcaiyy.xyz` 仅解析 AAAA；
   - IPv6：`gettype: netInterface`（eth1），域名 `cy.gcaiyy.xyz` →
     板子 WAN 全局 IPv6；
-  - 刷新周期 `-f 60`（曾为 300，前缀变化后 AAAA 会较久指向旧地址，IPv6
-    用户会报“网络不可达”）。
-- **前置条件**：家里路由器需把公网 **TCP 34443 → 192.168.1.2**（板子 eth1）
-  端口转发，IPv4 用户（无 IPv6 的网络）才能经 A 记录连入。IPv6 直连不依赖
-  该转发（依赖上游对板子 WAN 地址的入站放行）。
+  - ⚠️ **现场核对（2026-08-20）**：`ipv6.enable` 当前也是 `false`，11:30
+    重启后日志已无 IPv6 检查；当前 AAAA 恰好仍等于板子地址，IPv6 前缀一变
+    就会失效。待恢复 `enable: true` 并重启 ddns-go。
+- 公网 HTTPS 入口仅 `[IPv6]:34443`；IPv6 直连依赖上游对板子 WAN 地址的入站
+  放行，无 IPv6 的网络无法访问（IPv4 兜底已放弃）。
 - 小程序端已对网络层失败（不可达/超时）自动重试，切网后首次登录不再必挂。
