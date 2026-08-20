@@ -51,6 +51,28 @@
 - 删除与上传并发仍有窗口：A 删除时 B 恰好传完同名文件，A 的删除会删掉 B
   的新文件（删除操作本身幂等，界面刷新后以实际结果为准）。
 
+## 大文件上传（2026-08-20 实测）
+
+**坑**：lighttpd 1.4.54 收到 POST 请求体会先把 body 写入
+`server.upload-dirs` 的临时文件，再喂给 CGI stdin；OpenWrt 默认
+`server.upload-dirs = ( "/tmp" )` 而 /tmp 是 tmpfs（本板 248MB），
+427MB 视频传到 ~240MB 时写临时文件失败，lighttpd 直接回 500
+（error.log：`write() temp-file /tmp/lighttpd-upload-XXXX failed`），
+我们 CGI 的流式写盘根本跑不到。
+
+**修复（已在板子与 `cloud-drive/lighttpd.conf` 生效）**：
+
+```text
+server.upload-dirs         = ( "/mnt/sd/.upload", "/tmp" )
+server.stream-request-body = 1
+```
+
+- `/mnt/sd/.upload` 挂在 SD 卡（大 body 落到有空间的盘），/tmp 兜底；
+- `server.stream-request-body = 1` 让 lighttpd 把请求体直接流式转发给
+  CGI（mod_cgi 1.4.54 支持），大文件不再产生完整临时文件；
+- 300MB LAN 实测通过：201 + 最终路径，/tmp 占用不涨，md5 一致，无
+  `.part`/临时文件残留。
+
 ## lighttpd 配置（板子 `/etc/lighttpd/lighttpd.conf`）
 
 ```text

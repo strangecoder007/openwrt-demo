@@ -83,6 +83,14 @@
     失败原因已透传到界面便于自诊断。
 11. **busybox wget 不认 `--header`**：板子 acme.sh 无法工作；编 GNU wget
     1.20.3 替换后证书续期迁到板子（详见下）。
+12. **大视频上传 71% 处 HTTP 500（2026-08-20）**：lighttpd 1.4 先把 POST
+    body 写到 `server.upload-dirs` 临时文件再喂 CGI，默认 `/tmp` 是 tmpfs
+    （248MB），427MB 视频传到 ~240MB 即写临时文件失败回 500（error.log
+    `write() temp-file /tmp/lighttpd-upload-XXXX failed`）。修复：板子与
+    demo 仓库 `cloud-drive/lighttpd.conf` 改为
+    `server.upload-dirs = ( "/mnt/sd/.upload", "/tmp" )` +
+    `server.stream-request-body = 1`；300MB LAN 实测通过（md5 一致、/tmp
+    占用不涨、无临时文件残留）。
 
 ## 七、证书续期（已迁到板子）
 
