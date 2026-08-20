@@ -62,3 +62,18 @@
 - **回退**：Windows 计划任务 `CloudCertRenew` 已停用但保留；脚本
   `renew-cloud-cert.sh`（`C:\Users\Administrator\scripts\`）重启用
   `Enable-ScheduledTask -TaskName CloudCertRenew`。
+
+## 公网双栈与 DNS（2026-08-20）
+
+- ddns-go（`/root/.ddns_go_config.yaml`，init 脚本 `/etc/init.d/ddns-go`）
+  同时维护 **A + AAAA**：
+  - IPv4：`gettype: url`（myip4.ipip.net 等探测公网 IPv4），域名
+    `cy.gcaiyy.xyz` → 家里路由器公网 IP（当前 `101.204.11.54`）；
+  - IPv6：`gettype: netInterface`（eth1），域名 `cy.gcaiyy.xyz` →
+    板子 WAN 全局 IPv6；
+  - 刷新周期 `-f 60`（曾为 300，前缀变化后 AAAA 会较久指向旧地址，IPv6
+    用户会报“网络不可达”）。
+- **前置条件**：家里路由器需把公网 **TCP 34443 → 192.168.1.2**（板子 eth1）
+  端口转发，IPv4 用户（无 IPv6 的网络）才能经 A 记录连入。IPv6 直连不依赖
+  该转发（依赖上游对板子 WAN 地址的入站放行）。
+- 小程序端已对网络层失败（不可达/超时）自动重试，切网后首次登录不再必挂。

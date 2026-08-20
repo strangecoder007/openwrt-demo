@@ -36,7 +36,16 @@ Page({
       wx.showToast({ title: '登录成功', icon: 'success' });
       wx.reLaunch({ url: '/pages/home/home' });
     } catch (e) {
-      const msg = e.code === 401 ? '账号或密码错误' : (e.message || '连接失败');
+      let msg;
+      if (e.code === 401) {
+        msg = '账号或密码错误';
+      } else if (/unreachable|不可达/.test(e.message || '')) {
+        msg = '网络不可达，请切换网络或稍后重试';
+      } else if (/timeout|超时/.test(e.message || '')) {
+        msg = '连接超时，请稍后重试';
+      } else {
+        msg = e.message || '连接失败';
+      }
       wx.showToast({ title: msg, icon: 'none' });
     } finally {
       this.setData({ loading: false });

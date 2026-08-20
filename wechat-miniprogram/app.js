@@ -1,10 +1,17 @@
 const auth = require('./utils/auth');
 
 App({
-  version: 'v20260819.7',
+  version: 'v20260820.1',
   globalData: { session: null },
   onLaunch() {
     this.globalData.session = auth.loadSession();
+    this.globalData.isConnected = true;
+    if (typeof wx.onNetworkStatusChange === 'function') {
+      wx.onNetworkStatusChange((res) => {
+        this.globalData.isConnected = res.isConnected;
+        this.globalData.networkType = res.networkType;
+      });
+    }
   },
   setSession(s) {
     this.globalData.session = s;
