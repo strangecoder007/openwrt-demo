@@ -9,25 +9,21 @@
   - `depth=1`：列出目录下的子项；`depth=0`：只返回该资源本身
   - 资源不存在 → `404 {"ok":false,"error":"not_found"}`
   - 正常 → `200 {"ok":true,"items":[{href,contentLength,contentType,lastModified,isDir}, ...]}`
-  - 目录列举会**跳过派生图文件**（`.thumb.jpg` 缩略图、`.preview.jpg` 预览图
-    结尾；深度 0 的单文件查询不受影响，小程序加载缩略图/预览图仍可用）；
-    避免派生图被当成普通文件、被再次生成链条。
+  - 目录列举会**跳过 `.thumb.jpg` 结尾的缩略图文件**（深度 0 的单文件查询不受影响，
+    小程序加载缩略图仍可用）；避免缩略图被当成普通文件、被再次生成链条。
 - `GET /cgi-bin/dav-bridge.cgi?op=mkdir&path=<url-encoded>`
   - 创建成功 → `201`；已存在 → `405`（与 WebDAV `MKCOL` 语义一致）
 - `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`
   - multipart/form-data，文件字段名 `file`（微信 `wx.uploadFile` 默认字段名）
-  - 创建成功 → `201`；超过 64MB → `413`；格式错误 → `400`
-  - 先写 `<target>.part` 再 rename，半截文件不会以正式文件名出现
-- `POST /cgi-bin/dav-bridge.cgi?op=register`
-  - body 为 `application/x-www-form-urlencoded`，字段 `user`/`pass`
-  - 创建成功 → `201 {"ok":true,"user":"..."}`；用户名/密码非法 → `400`；
-    用户名已存在 → `409`
-  - `dav-bridge.cgi` 全站认证为 `valid-user`（登录/列表/上传对所有有效账号
-    开放），**注册权限在 CGI 内部收紧**：`op=register` 要求
-    `REMOTE_USER == backup`（`ADMIN_USER`），其他账号调用返回 `403`；
-  - 哈希用 `openssl passwd -apr1` 生成后追加 `/etc/lighttpd/webdav.passwd`；
-    该文件属主必须为 `http`（CGI 以 http 用户追加，密码仅作 argv 短暂可见，
-    后续可改用 libcrypto 实现 apr1 消除 exec）。
+  - 创建成功 → `201 {"ok":true,"items":[],"path":"/dav/.../<最终文件名>"}`；
+    超过 64MB → `413`；格式错误 → `400`
+  - **服务端原子命名（PKG_RELEASE=5）**：目标名以 `O_EXCL` 方式创建
+    `<name>.part`，重名自动加 `-1`、`-2` 后缀（插在扩展名之前），再
+    `renameat2(RENAME_NOREPLACE)` 发布；并发的同名上传不会互相覆盖，
+    `path` 字段返回最终落盘路径，小程序据此派生缩略图/预览图
+  - **流式写盘**：multipart 边收边写（固定 64KB 缓冲），不再把整个请求体
+    读进内存，并发大文件上传不会把板子内存吃满
+  - 半截文件不会以正式文件名出现（写 `.part` 期间列表不可见）
 
 上传/下载/删除：上传走桥（`wx.request` 无上传进度回调，`wx.uploadFile` 有
 `onProgressUpdate`，但它只支持 multipart，所以桥提供 `op=upload`）；
@@ -35,10 +31,9 @@
 
 ## 认证与安全
 
-- Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`/dav/`、`/dav`、
-  `/cgi-bin/dav-bridge.cgi` 均为 `valid-user`，htpasswd 里的所有账号共用
-  同一云盘），CGI 只校验 `REMOTE_USER` 非空；注册额外要求
-  `REMOTE_USER == backup`（见上）；
+- Basic 认证由 lighttpd mod_auth 在 CGI 执行前完成（`auth.require` 里对
+  `/cgi-bin/dav-bridge.cgi` 配置与 `/dav/` 相同的用户 `backup`），CGI 只校验
+  `REMOTE_USER` 非空；
 - 路径必须先以 `/dav` 或 `/dav/` 开头；拒绝 `..` 段；`ls` 用 `realpath`、
   `mkdir` 用“最深已存在祖先的 realpath”双重确认解析结果仍在 `/mnt/sd` 之下，
   防 symlink 逃逸；
@@ -46,6 +41,14 @@
 - `ls`/`mkdir` 只接受 `GET`，`upload` 只接受 `POST`；`REMOTE_USER` 为空直接 401。
 - 上传请求体上限 64MB 由 CGI 自身保证（超限 413）；lighttpd 1.4.54 默认请求体
   上限足够（不认 `server.max-request-body-size` 配置键，会告警忽略）。
+
+## 并发说明（2026-08-20）
+
+- 多个用户共用账号=多个并发 HTTP 连接，Basic 认证无会话锁，服务端不会互踢；
+- 并发上传**不同文件**安全；并发上传**同名文件**由服务端 `O_EXCL` +
+  `-N` 后缀保证不覆盖（旧版是先查后写，存在竞态）；
+- 删除与上传并发仍有窗口：A 删除时 B 恰好传完同名文件，A 的删除会删掉 B
+  的新文件（删除操作本身幂等，界面刷新后以实际结果为准）。
 
 ## lighttpd 配置（板子 `/etc/lighttpd/lighttpd.conf`）
 

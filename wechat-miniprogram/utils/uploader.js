@@ -97,10 +97,12 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
     }
     const dir = monthDir(f.time);
     await dav.mkcol('/dav/backup/android/DCIM/' + dir);
-    const path = await uniquePath(dav, '/dav/backup/android/DCIM/' + dir, f.name);
-    await dav.upload(path, f.tempFilePath, (percent) => {
+    const candidate = await uniquePath(dav, '/dav/backup/android/DCIM/' + dir, f.name);
+    // 服务端会原子分配唯一名（并发同名可能再改成 -N 后缀），以返回的最终
+    // 路径为准；旧版桥返回 null 时回退到客户端查重得到的候选名。
+    const path = (await dav.upload(candidate, f.tempFilePath, (percent) => {
       if (onProgress) onProgress(done, total, percent, f.name, done);
-    });
+    })) || candidate;
     // 图片顺带传一张压缩缩略图，月视图就不用下载原图
     if (f.type === 'image') {
       const thumb = await makeThumb(f.tempFilePath);

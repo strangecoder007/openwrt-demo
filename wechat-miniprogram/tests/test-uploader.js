@@ -121,9 +121,42 @@ async function testUploadFilesWithDerived() {
   ]);
 }
 
+async function testUploadFilesServerRename() {
+  // 服务端原子命名可能把同名文件改成 -1：派生图必须挂在返回的最终路径下。
+  const log = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => {
+      if (p.indexOf('/a.jpg') !== -1 && fp === 'wxfile://a.jpg') {
+        log.push('upload:' + p + '#' + fp);
+        return '/dav/backup/android/DCIM/2026-08/a-1.jpg';
+      }
+      if (p.indexOf('.thumb.jpg') !== -1) { log.push('thumb:' + p); return p; }
+      if (p.indexOf('.preview.jpg') !== -1) { log.push('preview:' + p); return p; }
+      log.push('upload:' + p + '#' + fp);
+      return p;
+    }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' }
+  ];
+  await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async (fp) => 'thumb-' + fp,
+    makePreview: async (fp) => 'preview-' + fp
+  });
+  assert.deepStrictEqual(log, [
+    'upload:/dav/backup/android/DCIM/2026-08/a.jpg#wxfile://a.jpg',
+    'thumb:/dav/backup/android/DCIM/2026-08/a-1.thumb.jpg',
+    'preview:/dav/backup/android/DCIM/2026-08/a-1.preview.jpg'
+  ]);
+}
+
 testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPreviewPath();
 testUniquePath()
   .then(testNoDerivedWithoutWx)
   .then(testUploadFiles)
   .then(testUploadFilesWithDerived)
+  .then(testUploadFilesServerRename)
   .then(() => console.log('test-uploader OK'));

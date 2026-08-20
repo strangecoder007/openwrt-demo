@@ -74,6 +74,28 @@ async function main() {
   assert.ok(uploadCalls[0].onProgressUpdate);
   assert.deepStrictEqual(pcts, [42]);
 
+  // 新版桥返回服务端最终路径（并发同名自动 -N），upload 应解析并返回。
+  const renamedDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest(() => ({ statusCode: 200, data: {} })),
+    uploadFile: () => Promise.resolve({
+      statusCode: 201,
+      data: '{"ok":true,"items":[],"path":"/dav/backup/android/DCIM/2026-08/IMG_x-1.jpg"}'
+    })
+  });
+  const finalPath = await renamedDav.upload('/dav/backup/android/DCIM/2026-08/IMG_x.jpg', 'wxfile://tmp.jpg');
+  assert.strictEqual(finalPath, '/dav/backup/android/DCIM/2026-08/IMG_x-1.jpg');
+
+  // 旧版桥空 body：返回 null，调用方回退到入参候选路径。
+  const legacyDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest(() => ({ statusCode: 200, data: {} })),
+    uploadFile: () => Promise.resolve({ statusCode: 201, data: '' })
+  });
+  assert.strictEqual(await legacyDav.upload('/dav/a.jpg', 'wxfile://a.jpg'), null);
+
   const failUpload = createDav({
     baseUrl: 'https://x',
     authHeader: 'B',

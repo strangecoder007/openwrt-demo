@@ -15,6 +15,12 @@
  *           returns just the resource itself (404 if it does not exist).
  *   GET /cgi-bin/dav-bridge.cgi?op=mkdir&path=<url-encoded>
  *        -> 201 created; 405 already exists (mirrors MKCOL semantics).
+ *   POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>
+ *        (multipart/form-data, part name "file")
+ *        -> 201 {"ok":true,"items":[],"path":"/dav/.../<final name>"}
+ *        The target name is assigned server-side (O_EXCL + -N suffix) and
+ *        the body is streamed to disk, so concurrent uploads of the same
+ *        file name neither corrupt each other nor exhaust board RAM.
  *
  * Authentication is handled by lighttpd mod_auth before this program
  * runs, so the CGI only checks that REMOTE_USER is set. All paths are
@@ -29,12 +35,14 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -49,6 +57,16 @@
 #define MAX_PATH_LEN 1024
 #define MAX_FORM_BYTES 4096
 #define MAX_UPLOAD_BYTES (64U * 1024 * 1024)
+
+#define CHUNK_SIZE       65536
+#define MAX_HEADER_BYTES 4096
+#define MAX_PART_LINE    256
+#define MAX_NAME_TRIES   1000
+
+/* RENAME_NOREPLACE (Linux >= 3.15; the board runs 4.1.15) */
+#ifndef RENAME_NOREPLACE
+#define RENAME_NOREPLACE 1
+#endif
 
 static void out_header(int status, const char *status_text)
 {
@@ -527,25 +545,229 @@ static int read_body(char **out, size_t *out_len)
 	return 0;
 }
 
+/* ---------- streaming multipart upload ---------- */
+
+typedef struct {
+	unsigned char buf[CHUNK_SIZE];
+	size_t len;
+	size_t pos;
+} stream_reader;
+
+static int sr_fill(stream_reader *r)
+{
+	r->pos = 0;
+	r->len = fread(r->buf, 1, sizeof(r->buf), stdin);
+	return r->len ? 0 : -1;
+}
+
+static int sr_byte(stream_reader *r, unsigned char *out)
+{
+	if (r->pos >= r->len && sr_fill(r) != 0)
+		return -1;
+	*out = r->buf[r->pos++];
+	return 0;
+}
+
+/*
+ * Make sure the next n bytes are buffered (refills and shifts as needed).
+ * Returns 0 when available, -1 on EOF before n bytes could be read.
+ */
+static int sr_peek(stream_reader *r, size_t n)
+{
+	while (r->len - r->pos < n) {
+		if (r->pos > 0) {
+			memmove(r->buf, r->buf + r->pos, r->len - r->pos);
+			r->len -= r->pos;
+			r->pos = 0;
+		}
+		if (r->len == sizeof(r->buf))
+			return -1; /* pattern larger than buffer; never happens */
+		{
+			size_t got = fread(r->buf + r->len, 1,
+					   sizeof(r->buf) - r->len, stdin);
+
+			if (got == 0)
+				return -1;
+			r->len += got;
+		}
+	}
+	return 0;
+}
+
+/* Read a line (LF or CRLF terminated); terminator is not stored. */
+static int sr_read_line(stream_reader *r, char *out, size_t cap, size_t *olen)
+{
+	size_t n = 0;
+	unsigned char b;
+
+	for (;;) {
+		if (sr_byte(r, &b) != 0)
+			return -1;
+		if (b == '\n')
+			break;
+		if (n + 1 >= cap)
+			return -1;
+		if (b != '\r')
+			out[n++] = (char)b;
+	}
+	out[n] = '\0';
+	*olen = n;
+	return 0;
+}
+
+/* Read part headers up to the blank line ("\r\n\r\n"), including it. */
+static int sr_read_headers(stream_reader *r, char *out, size_t cap,
+			   size_t *olen)
+{
+	size_t n = 0;
+	unsigned char b;
+
+	for (;;) {
+		if (sr_byte(r, &b) != 0)
+			return -1;
+		if (n + 1 >= cap)
+			return -1;
+		out[n++] = (char)b;
+		if (n >= 4 && memcmp(out + n - 4, "\r\n\r\n", 4) == 0) {
+			out[n] = '\0';
+			*olen = n;
+			return 0;
+		}
+	}
+}
+
+/*
+ * Stream file data into outf until the terminator pattern ("\r\n--boundary")
+ * is seen. Detection works across chunk boundaries by withholding the last
+ * (plen - 1) bytes of each chunk; memory stays bounded by CHUNK_SIZE.
+ * Returns 0 on success, -1 malformed (EOF), -2 write error, -3 too large.
+ */
+static int sr_copy_until_boundary(stream_reader *r, FILE *outf,
+				  const char *pat, size_t plen,
+				  size_t *total, size_t max)
+{
+	size_t keep = plen - 1;
+
+	for (;;) {
+		size_t found;
+
+		if (sr_peek(r, plen) != 0)
+			return -1;
+		/*
+		 * The terminator may start anywhere inside the uncommitted
+		 * window (it often begins before the most recent fill), so
+		 * search the whole window rather than only its first byte.
+		 */
+		found = find_bytes((const char *)r->buf, r->len, r->pos,
+				   pat, plen);
+		if (found != (size_t)-1) {
+			size_t writable = found - r->pos;
+
+			if (writable > 0) {
+				if (fwrite(r->buf + r->pos, 1, writable,
+					   outf) != writable)
+					return -2;
+				r->pos += writable;
+				*total += writable;
+				if (*total > max)
+					return -3;
+			}
+			return 0;
+		}
+		{
+			size_t avail = r->len - r->pos;
+			size_t writable = avail > keep ? avail - keep : 0;
+
+			if (writable > 0) {
+				if (fwrite(r->buf + r->pos, 1, writable,
+					   outf) != writable)
+					return -2;
+				r->pos += writable;
+				*total += writable;
+				if (*total > max)
+					return -3;
+			}
+		}
+	}
+}
+
+/*
+ * Build the n-th candidate target for an original path: name, name-1,
+ * name-2 ... inserting the suffix before the final extension (same scheme
+ * the mini program used client-side, now enforced atomically server-side).
+ */
+static int build_candidate(const char *fs, int n, char *out, size_t outsz)
+{
+	const char *slash;
+	const char *dot;
+	size_t base_len;
+
+	if (n <= 0) {
+		if (strlen(fs) >= outsz)
+			return -1;
+		strcpy(out, fs);
+		return 0;
+	}
+	slash = strrchr(fs, '/');
+	dot = strrchr(fs, '.');
+	base_len = (dot && (!slash || dot > slash)) ? (size_t)(dot - fs)
+						    : strlen(fs);
+	if (snprintf(out, outsz, "%.*s-%d%s", (int)base_len, fs, n,
+		     fs + base_len) >= (int)outsz)
+		return -1;
+	return 0;
+}
+
+/*
+ * Atomically publish tmp as final. Uses renameat2(RENAME_NOREPLACE) so an
+ * already-published file is never overwritten; on kernels/filesystems that
+ * do not support it, falls back to plain rename() (same-name overwrite, the
+ * old behaviour, mitigated by the client's existence probe).
+ * Returns 0 on success, -1 on error (errno set), -2 when the target exists.
+ */
+static int publish_part(const char *tmp, const char *final)
+{
+#if defined(SYS_renameat2)
+	if (syscall(SYS_renameat2, AT_FDCWD, tmp, AT_FDCWD, final,
+		     RENAME_NOREPLACE) == 0)
+		return 0;
+	if (errno == EEXIST)
+		return -2;
+	if (errno != ENOSYS && errno != EINVAL)
+		return -1;
+#endif
+	return rename(tmp, final) == 0 ? 0 : -1;
+}
+
 /*
  * op=upload&path=<url-encoded>  (POST, multipart/form-data, part name
  * "file"). WeChat wx.uploadFile has onProgressUpdate, unlike wx.request,
- * so uploads go through this CGI instead of a WebDAV PUT. The file part
- * is written to "<target>.part" first and renamed into place so a
- * half-written body never shows up as a valid file.
+ * so uploads go through this CGI instead of a WebDAV PUT.
+ *
+ * The body is parsed and written to disk in a streaming fashion (bounded
+ * CHUNK_SIZE buffer) instead of buffering up to 64MB per request, so
+ * several concurrent uploads do not exhaust board RAM. The target is
+ * created with O_EXCL and auto-suffixed (-1, -2, ...) server-side when the
+ * name is taken, closing the check-then-act race the mini program's
+ * client-side probe used to have. The final path is returned as JSON so
+ * the client can place derived thumbnails next to the real file.
  */
 static int op_upload(const char *path)
 {
 	char fs[PATH_MAX];
 	char prefix[PATH_MAX];
 	char boundary[128];
-	char needle[160];
+	char partline[MAX_PART_LINE];
+	char hdrs[MAX_HEADER_BYTES];
 	char tmp[PATH_MAX];
-	char *body = NULL;
-	size_t body_len = 0;
-	size_t b_len, n_len, pos, hs, he, ps, pe;
-	bool is_file, found = false;
-	int r;
+	char final_path[PATH_MAX];
+	char pat[2 + 2 + sizeof(boundary)];
+	size_t b_len, plen, hlen, pat_len, total = 0;
+	stream_reader r;
+	FILE *outf = NULL;
+	int fd = -1;
+	int n;
+	int rc;
 
 	if (!make_fs_path(path, fs, sizeof(fs)))
 		return out_error(400, "Bad Request", "invalid path");
@@ -556,85 +778,118 @@ static int op_upload(const char *path)
 	if (!get_boundary(boundary, sizeof(boundary)))
 		return out_error(400, "Bad Request", "missing boundary");
 	b_len = strlen(boundary);
-	if (snprintf(needle, sizeof(needle), "\r\n--%s", boundary) >=
-	    (int)sizeof(needle))
-		return out_error(500, "Internal Server Error", "boundary too long");
-	n_len = strlen(needle);
 
-	r = read_body(&body, &body_len);
-	if (r == 413)
-		return out_error(413, "Payload Too Large", "too large");
-	if (r == 500)
-		return out_error(500, "Internal Server Error", "read failed");
-	if (body_len == 0)
-		return out_error(400, "Bad Request", "empty body");
+	/* Early Content-Length guard (still enforced while streaming). */
+	{
+		const char *cl = getenv("CONTENT_LENGTH");
+
+		if (cl) {
+			unsigned long long want = strtoull(cl, NULL, 10);
+
+			if (want > MAX_UPLOAD_BYTES)
+				return out_error(413, "Payload Too Large",
+						 "too large");
+		}
+	}
+
+	r.len = 0;
+	r.pos = 0;
 
 	/* First line must be "--boundary". */
-	pos = (body_len >= 2 && body[0] == '\r' && body[1] == '\n') ? 2 : 0;
-	if (body_len - pos < b_len + 2 ||
-	    memcmp(body + pos, "--", 2) != 0 ||
-	    memcmp(body + pos + 2, boundary, b_len) != 0)
-		goto bad;
-	pos += b_len + 2;
-	if (body_len - pos < 2 || body[pos] != '\r' || body[pos + 1] != '\n')
-		goto bad;
-	pos += 2;
+	if (sr_read_line(&r, partline, sizeof(partline), &plen) != 0 ||
+	    plen != b_len + 2 || memcmp(partline, "--", 2) != 0 ||
+	    memcmp(partline + 2, boundary, b_len) != 0)
+		return out_error(400, "Bad Request", "malformed multipart");
 
-	for (;;) {
-		hs = pos;
-		he = find_bytes(body, body_len, hs, "\r\n\r\n", 4);
-		if (he == (size_t)-1)
-			goto bad;
-		is_file = find_bytes(body, body_len, hs, "name=\"file\"", 10) !=
-			  (size_t)-1;
-		ps = he + 4;
-		pe = find_bytes(body, body_len, ps, needle, n_len);
-		if (pe == (size_t)-1)
-			goto bad;
-
-		if (is_file) {
-			snprintf(tmp, sizeof(tmp), "%s.part", fs);
-			FILE *outf = fopen(tmp, "wb");
-			if (!outf)
-				goto ioerr;
-			if (fwrite(body + ps, 1, pe - ps, outf) != pe - ps) {
-				fclose(outf);
-				unlink(tmp);
-				goto ioerr;
-			}
-			if (fclose(outf) != 0) {
-				unlink(tmp);
-				goto ioerr;
-			}
-			if (rename(tmp, fs) != 0) {
-				unlink(tmp);
-				goto ioerr;
-			}
-			found = true;
-			break;
-		}
-
-		pos = pe + n_len;
-		if (body_len - pos >= 2 && body[pos] == '-' && body[pos + 1] == '-')
-			break; /* closing boundary, no file part seen */
-		if (body_len - pos < 2 || body[pos] != '\r' || body[pos + 1] != '\n')
-			goto bad;
-		pos += 2;
-	}
-	free(body);
-
-	if (!found)
+	/* Part headers; the bridge contract is exactly one file part. */
+	if (sr_read_headers(&r, hdrs, sizeof(hdrs), &hlen) != 0)
+		return out_error(400, "Bad Request", "malformed multipart");
+	if (find_bytes(hdrs, hlen, 0, "name=\"file\"", 10) == (size_t)-1)
 		return out_error(400, "Bad Request", "no file part");
-	out_header(201, "Created");
-	printf("{\"ok\":true,\"items\":[]}\n");
-	return 0;
 
-bad:
-	free(body);
-	return out_error(400, "Bad Request", "malformed multipart");
-ioerr:
-	free(body);
-	return out_error(500, "Internal Server Error", strerror(errno));
+	/* Reserve a unique <name>.part with O_EXCL, auto-suffixing on clash. */
+	for (n = 0; n < MAX_NAME_TRIES; n++) {
+		if (build_candidate(fs, n, final_path,
+				    sizeof(final_path)) != 0)
+			return out_error(500, "Internal Server Error",
+					 "path too long");
+		snprintf(tmp, sizeof(tmp), "%s.part", final_path);
+		fd = open(tmp, O_WRONLY | O_CREAT | O_EXCL, 0644);
+		if (fd >= 0)
+			break;
+		if (errno != EEXIST)
+			return out_error(500, "Internal Server Error",
+					 strerror(errno));
+	}
+	if (fd < 0)
+		return out_error(409, "Conflict", "name space exhausted");
+
+	outf = fdopen(fd, "wb");
+	if (!outf) {
+		close(fd);
+		unlink(tmp);
+		return out_error(500, "Internal Server Error",
+				 strerror(errno));
+	}
+
+	/* "\r\n--" + boundary terminates the file part. */
+	pat[0] = '\r';
+	pat[1] = '\n';
+	pat[2] = '-';
+	pat[3] = '-';
+	memcpy(pat + 4, boundary, b_len);
+	pat_len = b_len + 4;
+
+	rc = sr_copy_until_boundary(&r, outf, pat, pat_len, &total,
+				    MAX_UPLOAD_BYTES);
+	if (rc == -3) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(413, "Payload Too Large", "too large");
+	}
+	if (rc == -2) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(500, "Internal Server Error", "write failed");
+	}
+	if (rc != 0) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(400, "Bad Request", "malformed multipart");
+	}
+	if (fclose(outf) != 0) {
+		unlink(tmp);
+		return out_error(500, "Internal Server Error", "write failed");
+	}
+
+	/*
+	 * Publish; if the target appeared while we were writing (the
+	 * client-side probe raced), keep the data and retry the next free
+	 * suffix instead of overwriting someone else's upload.
+	 */
+	for (; n < MAX_NAME_TRIES; n++) {
+		if (build_candidate(fs, n, final_path,
+				    sizeof(final_path)) != 0) {
+			unlink(tmp);
+			return out_error(500, "Internal Server Error",
+					 "path too long");
+		}
+		rc = publish_part(tmp, final_path);
+		if (rc == 0) {
+			out_header(201, "Created");
+			printf("{\"ok\":true,\"items\":[],\"path\":");
+			print_href(final_path, false);
+			printf("}\n");
+			return 0;
+		}
+		if (rc == -2)
+			continue; /* target exists -> try next -N suffix */
+		unlink(tmp);
+		return out_error(500, "Internal Server Error",
+				 strerror(errno));
+	}
+	unlink(tmp);
+	return out_error(409, "Conflict", "name space exhausted");
 }
 
 /*
