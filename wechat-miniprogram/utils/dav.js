@@ -60,6 +60,13 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
     // 不再每个文件发 4 次请求（旧版桥不支持时返回 405，由调用方兜底）
     const res = await callUrl('DELETE', bridgeUrl('delete', { path }));
     if (res.statusCode === 204 || res.statusCode === 404) return true;
+    if (res.statusCode === 405) {
+      // 旧版桥没有 op=delete：回退直接 DELETE /dav 路径（只删主文件，
+      // 派生文件会残留；部署 dav-bridge 10 后不再走这条）
+      const legacy = await call('DELETE', path);
+      if (legacy.statusCode === 204 || legacy.statusCode === 404) return true;
+      throw httpError(legacy.statusCode);
+    }
     throw httpError(res.statusCode);
   }
 

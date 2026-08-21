@@ -105,6 +105,22 @@ async function main() {
   assert.ok(delCalls[0].url.indexOf('op=delete') !== -1);
   assert.ok(delCalls[0].url.indexOf('path=' + encodeURIComponent('/dav/backup/android/DCIM/2026-08/a.jpg')) !== -1);
 
+  // 旧版桥没有 op=delete（405）：回退直接 DELETE /dav 路径（仅主文件）
+  const legacyCalls = [];
+  const legacyDelDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest((opts) => {
+      legacyCalls.push(opts);
+      if (opts.url.indexOf('op=delete') !== -1) return { statusCode: 405, data: '' };
+      return { statusCode: 204, data: '' };
+    })
+  });
+  await legacyDelDav.del('/dav/backup/android/DCIM/2026-08/a.jpg');
+  assert.strictEqual(legacyCalls.length, 2);
+  assert.strictEqual(legacyCalls[1].method, 'DELETE');
+  assert.strictEqual(legacyCalls[1].url, 'https://cy.gcaiyy.xyz/dav/backup/android/DCIM/2026-08/a.jpg');
+
   // 新版桥返回服务端最终路径（并发同名自动 -N），upload 应解析并返回。
   const renamedDav = createDav({
     baseUrl: 'https://cy.gcaiyy.xyz',
