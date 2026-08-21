@@ -1,11 +1,12 @@
-<view class="page">
+<view class="page register-page">
+  <view class="hero-bg"></view>
   <view class="brand">
     <view class="logo">🔑</view>
     <view class="title">注册账号</view>
     <view class="subtitle">新账号与管理员共用同一个云盘</view>
   </view>
 
-  <view class="card">
+  <view class="card register-card">
     <view class="field-group">
       <text class="field-label">服务器地址</text>
       <input class="field" placeholder="https://cy.gcaiyy.xyz:34443" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />

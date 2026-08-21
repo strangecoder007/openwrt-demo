@@ -1,6 +1,9 @@
 <view class="page">
   <view wx:for="{{days}}" wx:key="key" class="day-section">
-    <view class="day-header">{{item.label}} · {{item.files.length}} 个</view>
+    <view class="day-header">
+      <text class="day-label">{{item.label}}</text>
+      <text class="day-count">{{item.files.length}} 个</text>
+    </view>
     <view class="grid">
       <view wx:for="{{item.files}}" wx:for-item="file" wx:key="name" class="cell {{editing ? 'editing' : ''}}" data-path="{{file.path}}" bindtap="onTapFile" hover-class="press">
         <image wx:if="{{file.thumb}}" src="{{file.thumb}}" mode="aspectFill" class="thumb" />

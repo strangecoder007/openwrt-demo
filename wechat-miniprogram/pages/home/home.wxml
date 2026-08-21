@@ -1,17 +1,18 @@
-<view class="page">
-  <view class="header">
-    <view class="title">我的云盘</view>
-    <view class="subtitle">{{loading ? '加载中…' : (months.length ? months.length + ' 个月份备份' : 'DCIM 照片备份')}}</view>
+<view class="page home-page">
+  <view class="hero">
+    <view class="hero-cloud">☁️</view>
+    <view class="hero-title">我的云盘</view>
+    <view class="hero-sub">{{loading ? '加载中…' : (months.length ? months.length + ' 个月份备份' : 'DCIM 照片备份')}}</view>
   </view>
 
   <view wx:if="{{!loading && months.length === 0}}" class="empty">
-    <view class="empty-icon">☁️</view>
-    <view class="empty-text">还没有备份，点右下角上传</view>
+    <view class="empty-icon">📷</view>
+    <view class="empty-text">还没有备份，点右下角上传第一张照片</view>
   </view>
 
   <view class="month-list">
     <view class="month-card" wx:for="{{months}}" wx:key="name" data-path="{{item.path}}" bindtap="onTapMonth" hover-class="press">
-      <view class="month-icon">📁</view>
+      <view class="month-icon c{{index % 4}}">📁</view>
       <view class="month-info">
         <view class="month-name">{{item.name}}</view>
         <view class="month-count">{{item.count}} 个文件</view>

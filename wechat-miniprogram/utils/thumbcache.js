@@ -90,7 +90,12 @@ function createWxFs() {
   const fsm = wx.getFileSystemManager();
   return {
     exists(p) { try { fsm.accessSync(p); return true; } catch (e) { return false; } },
-    mkdir(p) { fsm.mkdirSync(p, true); },
+    // 目录已存在属正常（部分基础库/开发者工具对 recursive mkdirSync 已存在目录
+    // 仍抛 "file already exists"），先探测再创建，保证幂等
+    mkdir(p) {
+      try { fsm.accessSync(p); return; } catch (e) { /* 不存在才创建 */ }
+      fsm.mkdirSync(p, true);
+    },
     copy(src, dst) { fsm.copyFileSync(src, dst); },
     unlink(p) { fsm.unlinkSync(p); },
     readJSON(p) { try { return JSON.parse(fsm.readFileSync(p, 'utf8')); } catch (e) { return null; } },
