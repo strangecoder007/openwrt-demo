@@ -34,19 +34,31 @@ Page({
     const monthName = dirPath.split('/').filter(Boolean).pop() || '';
     this.setData({ dirPath, monthName });
   },
-  onShow() { this.loadFiles(); },
+  onShow() {
+    // wx.previewImage 关闭会触发本页 onShow（原生预览页导致 onHide/onShow 各一次），
+    // 预览返回不需要重载；用 _fromPreview 标志跳过，真正返回（上传/删除后）仍刷新
+    if (this._fromPreview) {
+      this._fromPreview = false;
+      return;
+    }
+    this.loadFiles();
+  },
   async loadFiles() {
     if (this._loading) return;
     this._loading = true;
     try {
       const dav = getDav();
       const items = await dav.propfind(this.data.dirPath, 1) || [];
+      // 重载时沿用已有缩略图/状态（文件还在的话），避免整屏闪“加载中…”
+      const prev = {};
+      for (const p of (this.allFiles || [])) prev[p.path] = p;
       const files = items
         .filter((f) => !f.isDir && !isThumbPath(f.href) && !isPreviewPath(f.href))
         .map((f) => {
           const name = f.href.split('/').filter(Boolean).pop();
           const info = dayInfo(name, f.lastModified);
           const isVideo = f.contentType.startsWith('video/');
+          const old = prev[f.href];
           return {
             name,
             size: f.contentLength,
@@ -61,8 +73,9 @@ Page({
             lastModified: f.lastModified,
             dayKey: info.key,
             dayLabel: info.label,
-            thumb: '',
-            status: 'pending'
+            thumb: (old && old.thumb) || '',
+            status: (old && old.thumb) ? 'ok' : 'pending',
+            error: (old && old.thumb) ? '' : ((old && old.error) || '')
           };
         })
         .sort((a, b) => (a.name < b.name ? 1 : -1));
@@ -144,6 +157,7 @@ Page({
     const worker = async () => {
       while (i < files.length) {
         const f = files[i++];
+        if (f.thumb) continue; // 重载时沿用旧缩略图，跳过重复加载
         let thumb = '';
         let err = '';
         try { thumb = (await this.fetchThumb(f, dav)) || ''; } catch (e) { thumb = ''; err = (e && e.message) || '加载失败'; console.warn('[month] thumb fail', f.path, e); }
@@ -238,7 +252,14 @@ Page({
     wx.hideLoading();
     const ok = urls.filter(Boolean);
     if (!ok.length) { wx.showToast({ title: '下载失败', icon: 'none' }); return; }
-    wx.previewImage({ current: urls[idx] || urls[0], urls: ok });
+    // 预览页是原生页面，关闭时会触发本页 onShow；置标志让 onShow 跳过重载。
+    // fail（预览没打开）时立刻清掉，避免标志残留吞掉下一次正常刷新。
+    this._fromPreview = true;
+    wx.previewImage({
+      current: urls[idx] || urls[0],
+      urls: ok,
+      fail: () => { this._fromPreview = false; }
+    });
   },
   async onDeleteSelected() {
     const paths = Object.keys(this.data.selected);

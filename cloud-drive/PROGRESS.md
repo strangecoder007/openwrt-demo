@@ -41,6 +41,18 @@
    - 首页月份计数并发 4 路拉取，不再 N+1 串行 propfind；
    - 旧版桥没有新字段时客户端自动回退到原探测逻辑（向后兼容）。
    **部署状态：代码已提交 GitHub，板子待重编重装 dav-bridge 9 + 上传体验版。**
+8. **月视图预览返回整屏刷新修复（2026-08-21，小程序 v20260820.8）**：
+   - `wx.previewImage` 关闭会触发本页 `onShow`（原生预览页 onHide/onShow 各
+     一次），原 `onShow(){ this.loadFiles(); }` 无条件全量重载，把每个文件
+     `thumb` 重置为空 → 整屏闪“加载中…”再逐张回填（虽然大多命中本地缓存，
+     渲染状态归零照样全闪）；
+   - 修复一：`previewDay` 调 `wx.previewImage` 前置 `_fromPreview` 标志，
+     `onShow` 发现标志则跳过重载并清除；`fail` 回调清标志防残留。
+   - 修复二：`loadFiles` 重载时沿用已有 `thumb/status/error`（文件还在则
+     保留、失败项重置 pending 重试），`loadThumbs` 跳过已有缩略图——真正的
+     刷新（下拉/删除后返回/上传返回）也不再整屏闪白。
+   **部署状态：代码已提交 GitHub，与 dav-bridge 9 一并部署（小程序上传
+   v20260820.8 体验版）。**
 
 ## 一、项目目标
 
@@ -187,7 +199,8 @@
 - 板子 `webdav.passwd` 当前用户：backup、yanzi；
 - 视频压缩版 `.preview.mp4` 功能代码已提交（dav-bridge 8 / v20260820.6），
   板子尚未部署；
-- dav-bridge 9 + 小程序 v20260820.7（register 内存上限、`.part` 残骸清理、
-  `hasXxx` 免探测、首页并发）代码已提交，板子待重编重装 + 上传体验版；
+- dav-bridge 9 + 小程序 v20260820.8（register 内存上限、`.part` 残骸清理、
+  `hasXxx` 免探测、首页并发、预览返回不整屏刷新）代码已提交，板子待重编
+  重装 + 上传体验版；
 - ⚠️ ddns-go `ipv6.enable` 现为 `false`（关闭 IPv4 时被误关），AAAA 已停止
   刷新，待恢复。
