@@ -19,8 +19,12 @@
   - 创建成功 → `201`；已存在 → `405`（与 WebDAV `MKCOL` 语义一致）
 - `POST /cgi-bin/dav-bridge.cgi?op=upload&path=<url-encoded>`
   - multipart/form-data，文件字段名 `file`（微信 `wx.uploadFile` 默认字段名）
-  - 创建成功 → `201 {"ok":true,"items":[],"path":"/dav/.../<最终文件名>"}`；
+  - 创建成功 → `201 {"ok":true,"items":[],"path":"/dav/.../<最终文件名>","size":<字节>,"md5":"<32hex>"}`；
     超过 512MB → `413`；格式错误 → `400`
+  - 可选完整性参数 `md5=<32hex>` 与 `size=<字节>`（客户端 `wx.getFileInfo`
+    提供）：服务端边写边算，大小/哈希不一致 → `400 size mismatch` /
+    `400 checksum mismatch`（temp 直接删除不发布，损坏文件不会出现在列表）；
+    `size` 超 512MB → `413`
   - **服务端原子命名（PKG_RELEASE=5）**：目标名以 `O_EXCL` 方式创建
     `<name>.part`，重名自动加 `-1`、`-2` 后缀（插在扩展名之前），再
     `renameat2(RENAME_NOREPLACE)` 发布；并发的同名上传不会互相覆盖，
@@ -28,10 +32,25 @@
   - **流式写盘**：multipart 边收边写（固定 64KB 缓冲），不再把整个请求体
     读进内存，并发大文件上传不会把板子内存吃满
   - 半截文件不会以正式文件名出现（写 `.part` 期间列表不可见）
+- `DELETE /cgi-bin/dav-bridge.cgi?op=delete&path=<url-encoded>`
+  - 删除主文件并**连带删除派生文件**（`.thumb.jpg` / `.preview.jpg` /
+    `.preview.mp4`），一次请求代替客户端原来逐张发的 4 次 DELETE
+  - 成功 → `204`；不存在 → `404`（客户端按幂等成功处理）；目录 → `405`
+  - 删除后 `fsync` 目录，目录项修改落盘
 
 上传/下载/删除：上传走桥（`wx.request` 无上传进度回调，`wx.uploadFile` 有
 `onProgressUpdate`，但它只支持 multipart，所以桥提供 `op=upload`）；
-下载/删除仍是小程序合法方法（`GET`/`DELETE`），直接由 lighttpd mod_webdav 处理。
+下载仍是小程序合法方法（`GET`），直接由 lighttpd mod_webdav 处理；删除从
+PKG_RELEASE=10 起也走桥（一次删主文件 + 派生文件）。
+
+## 上传落盘一致性（PKG_RELEASE=10）
+
+- 发布前 `fsync(fd)`：数据真正落盘后才把 `.part` rename 成正式名，掉电不会
+  把截断文件发布成正式名；
+- 发布后 `fsync` 父目录：目录项（rename/unlink）落盘，掉电后数据与目录项
+  一致；
+- MD5 由 libcrypto 计算（新增依赖 `libopenssl`，板子已有：openssl-util 依赖
+  它），`make` 时 `-lcrypto` 链接。
 
 ## 中断上传的 `.part` 残骸（PKG_RELEASE=9）
 
@@ -51,7 +70,8 @@
   `mkdir` 用“最深已存在祖先的 realpath”双重确认解析结果仍在 `/mnt/sd` 之下，
   防 symlink 逃逸；
 - 拒绝 `%00`，路径参数上限 1024 字节；
-- `ls`/`mkdir` 只接受 `GET`，`upload` 只接受 `POST`；`REMOTE_USER` 为空直接 401。
+- `ls`/`mkdir` 只接受 `GET`，`upload` 只接受 `POST`，`delete` 只接受 `DELETE`；
+  `REMOTE_USER` 为空直接 401。
 - 上传请求体上限 512MB 由 CGI 自身保证（超限 413），客户端（小程序）限制
   500MB/视频；lighttpd 1.4.54 的 `server.max-request-size` 默认 0（不限），
   Web 服务器不构成瓶颈。

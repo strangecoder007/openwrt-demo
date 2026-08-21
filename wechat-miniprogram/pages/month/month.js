@@ -271,15 +271,19 @@ Page({
     const dav = getDav();
     try {
       wx.showLoading({ title: '删除中' });
-      for (const p of paths) {
-        await dav.del(p);
-        // 原图删掉时服务端缩略图/预览图一起删，本地缓存同步清
-        try { await dav.del(thumbPathFor(p)); } catch (e) { /* 没有缩略图或已删 */ }
-        try { await dav.del(previewPathFor(p)); } catch (e) { /* 没有预览图或已删 */ }
-        try { await dav.del(previewVideoPathFor(p)); } catch (e) { /* 没有视频压缩版或已删 */ }
-        thumbCache.remove(cacheKeyForPath(thumbPathFor(p)));
-        thumbCache.remove(cacheKeyForPath(previewPathFor(p)));
-      }
+      // 桥端 op=delete 一次删主文件 + 全部派生文件；多文件并发 3 路，
+      // 原来逐文件 4 次串行请求 → 每文件 1 次
+      const CONC = 3;
+      let i = 0;
+      const worker = async () => {
+        while (i < paths.length) {
+          const p = paths[i++];
+          await dav.del(p);
+          thumbCache.remove(cacheKeyForPath(thumbPathFor(p)));
+          thumbCache.remove(cacheKeyForPath(previewPathFor(p)));
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(CONC, paths.length) }, () => worker()));
       wx.hideLoading();
       wx.showToast({ title: '已删除', icon: 'success' });
       this.setData({ editing: false });

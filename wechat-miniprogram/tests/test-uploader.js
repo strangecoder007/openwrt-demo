@@ -106,7 +106,6 @@ async function testUploadFiles() {
   assert.deepStrictEqual(log, [
     'mkcol:/dav/backup/android/DCIM/2026-08',
     'upload:/dav/backup/android/DCIM/2026-08/a.jpg#wxfile://a.jpg',
-    'mkcol:/dav/backup/android/DCIM/2026-08',
     'upload:/dav/backup/android/DCIM/2026-08/v.mp4#wxfile://v.mp4',
     'upload:/dav/backup/android/DCIM/2026-08/v.thumb.jpg#wxfile://v_cover.jpg'
   ]);
@@ -116,6 +115,53 @@ async function testUploadFiles() {
   let err = null;
   try { await uploadFiles({ dav, files: [big], onProgress: () => {} }); } catch (e) { err = e; }
   assert.strictEqual(err.code, 'TOO_LARGE');
+}
+
+async function testUploadFilesMultipleMonths() {
+  // 不同月份目录各 mkcol 一次；同月多个文件只 mkcol 一次（会话内去重）
+  const log = [];
+  const dav = {
+    mkcol: async (p) => { log.push('mkcol:' + p); },
+    propfind: async () => null,
+    upload: async (p, fp) => { log.push('upload:' + p); }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' },
+    { name: 'b.jpg', type: 'image', size: 1, time: new Date(2026, 8, 1).getTime(), tempFilePath: 'wxfile://b.jpg' }
+  ];
+  await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async () => null,
+    makePreview: async () => null
+  });
+  assert.deepStrictEqual(log, [
+    'mkcol:/dav/backup/android/DCIM/2026-08',
+    'upload:/dav/backup/android/DCIM/2026-08/a.jpg',
+    'mkcol:/dav/backup/android/DCIM/2026-09',
+    'upload:/dav/backup/android/DCIM/2026-09/b.jpg'
+  ]);
+}
+
+async function testUploadFilesIntegrity() {
+  // fileInfo 注入：size/md5 应作为第 4 参传给 dav.upload（服务端流式校验用）
+  const seen = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp, onProgress, info) => { seen.push({ p, fp, info }); }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 100, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' }
+  ];
+  await uploadFiles({
+    dav, files, onProgress: () => {},
+    fileInfo: async () => ({ size: 100, md5: 'abc123' }),
+    makeThumb: async () => null,
+    makePreview: async () => null
+  });
+  assert.strictEqual(seen.length, 1);
+  assert.strictEqual(seen[0].info.size, 100);
+  assert.strictEqual(seen[0].info.md5, 'abc123');
 }
 
 async function testUploadFilesVideoPreview() {
@@ -207,6 +253,8 @@ testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPrev
 testUniquePath()
   .then(testNoDerivedWithoutWx)
   .then(testUploadFiles)
+  .then(testUploadFilesMultipleMonths)
+  .then(testUploadFilesIntegrity)
   .then(testUploadFilesVideoPreview)
   .then(testUploadFilesWithDerived)
   .then(testUploadFilesServerRename)

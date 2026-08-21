@@ -56,7 +56,9 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
   }
 
   async function del(path) {
-    const res = await call('DELETE', path);
+    // 走桥端 op=delete：服务端连主文件 + 三个派生文件一次删掉，
+    // 不再每个文件发 4 次请求（旧版桥不支持时返回 405，由调用方兜底）
+    const res = await callUrl('DELETE', bridgeUrl('delete', { path }));
     if (res.statusCode === 204 || res.statusCode === 404) return true;
     throw httpError(res.statusCode);
   }
@@ -66,10 +68,15 @@ function createDav({ baseUrl, authHeader, request, uploadFile }) {
   // 新版桥在服务端原子分配唯一名（并发同名自动加 -N 后缀），成功时返回
   // JSON {"ok":true,"items":[],"path":"/dav/..."}，这里解析出最终路径；
   // 旧版桥返回空 body，调用方回退到入参 path。
-  async function upload(path, filePath, onProgress) {
+  async function upload(path, filePath, onProgress, opts = {}) {
     if (!uploadFile) throw new Error('uploadFile not provided');
+    // 完整性校验：把本地文件 size/md5（wx.getFileInfo）带给服务端，服务端
+    // 边写边算，不一致直接 400 拒绝发布，损坏文件不会出现在列表里
+    const params = { path };
+    if (opts.size) params.size = String(opts.size);
+    if (opts.md5) params.md5 = opts.md5;
     const res = await uploadFile({
-      url: bridgeUrl('upload', { path }),
+      url: bridgeUrl('upload', params),
       filePath,
       name: 'file',
       header: { Authorization: authHeader },

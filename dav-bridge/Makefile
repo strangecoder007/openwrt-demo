@@ -8,7 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=dav-bridge
-PKG_RELEASE:=9
+PKG_RELEASE:=10
 
 PKG_LICENSE:=GPL-2.0-only
 PKG_MAINTAINER:=Local <root@localhost>
@@ -19,7 +19,7 @@ define Package/dav-bridge
   SECTION:=net
   CATEGORY:=Network
   TITLE:=WebDAV JSON CGI bridge for WeChat Mini Program
-  DEPENDS:=+lighttpd +lighttpd-mod-cgi
+  DEPENDS:=+lighttpd +lighttpd-mod-cgi +libopenssl
 endef
 
 define Package/dav-bridge/description
@@ -32,7 +32,8 @@ endef
 
 define Build/Compile
 	$(TARGET_CC) $(TARGET_CFLAGS) $(TARGET_LDFLAGS) -Wall -Wextra -O2 \
-		-o $(PKG_BUILD_DIR)/dav-bridge $(PKG_BUILD_DIR)/dav-bridge.c
+		-o $(PKG_BUILD_DIR)/dav-bridge $(PKG_BUILD_DIR)/dav-bridge.c \
+		-lcrypto
 endef
 
 define Package/dav-bridge/install

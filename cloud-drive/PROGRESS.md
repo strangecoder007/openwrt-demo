@@ -53,6 +53,23 @@
      刷新（下拉/删除后返回/上传返回）也不再整屏闪白。
    **部署状态：代码已提交 GitHub，与 dav-bridge 9 一并部署（小程序上传
    v20260820.8 体验版）。**
+9. **上传完整性 + fsync + 删除收敛（2026-08-21，dav-bridge 10 / 小程序
+   v20260820.9）**：
+   - **完整性校验**：客户端 `wx.getFileInfo` 拿 size + MD5（digest 需基础库
+     2.2.0+，拿不到只传 size），`op=upload` 带 `md5=<32hex>&size=<字节>`；
+     CGI 流式写盘同时算 MD5（libcrypto，新增依赖 `libopenssl`，板子已有），
+     大小/哈希不一致 → `400 size/checksum mismatch`，temp 直接删不发布，
+     损坏文件不会出现在列表；201 响应带 `size` + `md5` 供核对；
+   - **fsync 一致性**：发布前 `fsync(fd)`，rename 后 `fsync` 父目录（删除
+     后同样 fsync 目录）——掉电不会把截断文件发布成正式名，目录项与数据
+     一致；
+   - **删除收敛**：新增 `DELETE op=delete&path=`，一次删主文件 + 三个派生
+     文件（`.thumb.jpg`/`.preview.jpg`/`.preview.mp4`），成功后 fsync 目录；
+     客户端并发 3 路删多个文件，原来逐文件 4 次串行请求 → 每文件 1 次；
+   - **mkcol 去重**：同一次上传会话内月份目录只 mkcol 一次（原来每个文件
+     打一次，9 张图 9 次 → 1 次）。
+   **部署状态：代码已提交 GitHub，板子待重编重装 dav-bridge 10 + 上传
+   v20260820.9 体验版（opkg 需带 libopenssl，板子已有）。**
 
 ## 一、项目目标
 
@@ -199,8 +216,8 @@
 - 板子 `webdav.passwd` 当前用户：backup、yanzi；
 - 视频压缩版 `.preview.mp4` 功能代码已提交（dav-bridge 8 / v20260820.6），
   板子尚未部署；
-- dav-bridge 9 + 小程序 v20260820.8（register 内存上限、`.part` 残骸清理、
-  `hasXxx` 免探测、首页并发、预览返回不整屏刷新）代码已提交，板子待重编
-  重装 + 上传体验版；
+- dav-bridge 10 + 小程序 v20260820.9（register 内存上限、`.part` 残骸清理、
+  `hasXxx` 免探测、首页并发、预览返回不整屏刷新、上传完整性 + fsync、
+  `op=delete` 删除收敛、mkcol 去重）代码已提交，板子待重编重装 + 上传体验版；
 - ⚠️ ddns-go `ipv6.enable` 现为 `false`（关闭 IPv4 时被误关），AAAA 已停止
   刷新，待恢复。

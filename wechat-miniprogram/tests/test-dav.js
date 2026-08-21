@@ -74,6 +74,37 @@ async function main() {
   assert.ok(uploadCalls[0].onProgressUpdate);
   assert.deepStrictEqual(pcts, [42]);
 
+  // 上传完整性参数：size/md5 应拼进 op=upload 查询串
+  const integrityCalls = [];
+  const integrityDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest(() => ({ statusCode: 200, data: {} })),
+    uploadFile: (opts) => {
+      integrityCalls.push(opts);
+      return Promise.resolve({ statusCode: 201, data: '{"ok":true,"items":[],"path":"/dav/x.jpg"}' });
+    }
+  });
+  await integrityDav.upload('/dav/x.jpg', 'wxfile://x.jpg', null,
+    { size: 1234, md5: 'd41d8cd98f00b204e9800998ecf8427e' });
+  assert.ok(integrityCalls[0].url.indexOf('size=1234') !== -1);
+  assert.ok(integrityCalls[0].url.indexOf('md5=d41d8cd98f00b204e9800998ecf8427e') !== -1);
+
+  // 删除走桥端 op=delete：DELETE 方法 + path 参数；204/404 均视为成功
+  const delCalls = [];
+  const delDav = createDav({
+    baseUrl: 'https://cy.gcaiyy.xyz',
+    authHeader: 'Basic eDp4',
+    request: mockRequest((opts) => {
+      delCalls.push(opts);
+      return { statusCode: 204, data: '' };
+    })
+  });
+  await delDav.del('/dav/backup/android/DCIM/2026-08/a.jpg');
+  assert.strictEqual(delCalls[0].method, 'DELETE');
+  assert.ok(delCalls[0].url.indexOf('op=delete') !== -1);
+  assert.ok(delCalls[0].url.indexOf('path=' + encodeURIComponent('/dav/backup/android/DCIM/2026-08/a.jpg')) !== -1);
+
   // 新版桥返回服务端最终路径（并发同名自动 -N），upload 应解析并返回。
   const renamedDav = createDav({
     baseUrl: 'https://cy.gcaiyy.xyz',

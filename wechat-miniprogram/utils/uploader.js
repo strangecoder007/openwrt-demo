@@ -93,6 +93,25 @@ function makeVideoPreview(src) {
   });
 }
 
+// 本地文件大小 + MD5（wx.getFileInfo，基础库 2.2.0+ 有 digest；拿不到 digest
+// 就只传 size，服务端仍校验大小）。上传前调用，供服务端流式校验完整性。
+function getLocalFileInfo(filePath) {
+  return new Promise((resolve) => {
+    if (typeof wx === 'undefined' || !wx.getFileInfo) {
+      resolve({ size: 0, md5: '' });
+      return;
+    }
+    wx.getFileInfo({
+      filePath,
+      success: (res) => resolve({
+        size: (res && res.size) || 0,
+        md5: ((res && res.digest) || '').toLowerCase()
+      }),
+      fail: () => resolve({ size: 0, md5: '' })
+    });
+  });
+}
+
 async function uniquePath(dav, dirPath, name) {
   let candidate = name;
   let n = 1;
@@ -107,22 +126,28 @@ async function uniquePath(dav, dirPath, name) {
   }
 }
 
-async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview, compressVideo = makeVideoPreview }) {
+async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview, compressVideo = makeVideoPreview, fileInfo = getLocalFileInfo }) {
   const total = files.length;
   let done = 0;
+  // 同一次上传里已确认存在的月份目录，跳过重复 mkcol（原来每个文件打一次）
+  const knownDirs = new Set();
   for (let i = 0; i < total; i++) {
     const f = files[i];
     if (f.type === 'video' && f.size > MAX_VIDEO_BYTES) {
       throw Object.assign(new Error('视频超过 500MB 限制: ' + f.name), { code: 'TOO_LARGE', file: f });
     }
-    const dir = monthDir(f.time);
-    await dav.mkcol('/dav/backup/android/DCIM/' + dir);
-    const candidate = await uniquePath(dav, '/dav/backup/android/DCIM/' + dir, f.name);
+    const dirPath = '/dav/backup/android/DCIM/' + monthDir(f.time);
+    if (!knownDirs.has(dirPath)) {
+      await dav.mkcol(dirPath);
+      knownDirs.add(dirPath);
+    }
+    const candidate = await uniquePath(dav, dirPath, f.name);
+    const info = await fileInfo(f.tempFilePath);
     // 服务端会原子分配唯一名（并发同名可能再改成 -N 后缀），以返回的最终
     // 路径为准；旧版桥返回 null 时回退到客户端查重得到的候选名。
     const path = (await dav.upload(candidate, f.tempFilePath, (percent) => {
       if (onProgress) onProgress(done, total, percent, f.name, done);
-    })) || candidate;
+    }, info)) || candidate;
     // 图片顺带传一张压缩缩略图，月视图就不用下载原图
     if (f.type === 'image') {
       const thumb = await makeThumb(f.tempFilePath);
@@ -156,5 +181,6 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
 module.exports = {
   MAX_VIDEO_BYTES, monthDir, makeFileName, contentTypeFor,
   thumbPathFor, previewPathFor, previewVideoPathFor, isThumbPath, isPreviewPath,
-  makeImageThumb, makeImagePreview, makeVideoPreview, uniquePath, uploadFiles
+  makeImageThumb, makeImagePreview, makeVideoPreview, getLocalFileInfo,
+  uniquePath, uploadFiles
 };

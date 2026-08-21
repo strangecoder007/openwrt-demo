@@ -49,6 +49,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <openssl/md5.h>
+
 #define DAV_PREFIX   "/dav"
 #define SD_ROOT      "/mnt/sd"
 #define PASSWD_FILE  "/etc/lighttpd/webdav.passwd"
@@ -703,7 +705,8 @@ static int sr_read_headers(stream_reader *r, char *out, size_t cap,
  */
 static int sr_copy_until_boundary(stream_reader *r, FILE *outf,
 				  const char *pat, size_t plen,
-				  size_t *total, size_t max)
+				  size_t *total, size_t max,
+				  MD5_CTX *md5ctx)
 {
 	size_t keep = plen - 1;
 
@@ -726,6 +729,9 @@ static int sr_copy_until_boundary(stream_reader *r, FILE *outf,
 				if (fwrite(r->buf + r->pos, 1, writable,
 					   outf) != writable)
 					return -2;
+				if (md5ctx)
+					MD5_Update(md5ctx, r->buf + r->pos,
+						   writable);
 				r->pos += writable;
 				*total += writable;
 				if (*total > max)
@@ -741,6 +747,9 @@ static int sr_copy_until_boundary(stream_reader *r, FILE *outf,
 				if (fwrite(r->buf + r->pos, 1, writable,
 					   outf) != writable)
 					return -2;
+				if (md5ctx)
+					MD5_Update(md5ctx, r->buf + r->pos,
+						   writable);
 				r->pos += writable;
 				*total += writable;
 				if (*total > max)
@@ -814,6 +823,47 @@ static bool remove_stale_part(const char *path)
 }
 
 /*
+ * fsync 文件所在目录，让 rename/unlink 的目录项修改落盘（掉电后目录项
+ * 与数据一致）。上传发布后和删除后各调一次。
+ */
+static void fsync_parent_dir(const char *path)
+{
+	const char *slash = strrchr(path, '/');
+	char dir[PATH_MAX];
+	size_t dlen;
+	int dfd;
+
+	if (!slash)
+		return;
+	dlen = (size_t)(slash - path);
+	if (dlen == 0) {
+		strcpy(dir, "/");
+	} else {
+		if (dlen >= sizeof(dir))
+			return;
+		memcpy(dir, path, dlen);
+		dir[dlen] = '\0';
+	}
+	dfd = open(dir, O_RDONLY | O_DIRECTORY);
+	if (dfd >= 0) {
+		fsync(dfd);
+		close(dfd);
+	}
+}
+
+static void md5_hex(const unsigned char d[16], char out[33])
+{
+	static const char hex[] = "0123456789abcdef";
+	int i;
+
+	for (i = 0; i < 16; i++) {
+		out[i * 2] = hex[d[i] >> 4];
+		out[i * 2 + 1] = hex[d[i] & 0xf];
+	}
+	out[32] = '\0';
+}
+
+/*
  * op=upload&path=<url-encoded>  (POST, multipart/form-data, part name
  * "file"). WeChat wx.uploadFile has onProgressUpdate, unlike wx.request,
  * so uploads go through this CGI instead of a WebDAV PUT.
@@ -825,8 +875,19 @@ static bool remove_stale_part(const char *path)
  * name is taken, closing the check-then-act race the mini program's
  * client-side probe used to have. The final path is returned as JSON so
  * the client can place derived thumbnails next to the real file.
+ *
+ * Optional integrity params (from the client's wx.getFileInfo):
+ *   md5=<32hex>  — MD5 of the original file; the bridge hashes the body while
+ *                  streaming and rejects (400, temp unlinked) on mismatch,
+ *                  so a corrupted upload never gets published.
+ *   size=<bytes> — exact file size; same mismatch rejection.
+ * The 201 response always carries size + md5 so the client can double-check.
+ * Before publishing, the data is fsync'd; after rename, the parent directory
+ * is fsync'd too, so a power cut cannot leave a truncated file under a
+ * final name.
  */
-static int op_upload(const char *path)
+static int op_upload(const char *path, const char *md5_hex,
+		     unsigned long long size_expect)
 {
 	char fs[PATH_MAX];
 	char prefix[PATH_MAX];
@@ -836,6 +897,9 @@ static int op_upload(const char *path)
 	char tmp[PATH_MAX];
 	char final_path[PATH_MAX];
 	char pat[2 + 2 + sizeof(boundary)];
+	char hexdigest[33];
+	unsigned char digest[16];
+	MD5_CTX md5ctx;
 	size_t b_len, plen, hlen, pat_len, total = 0;
 	stream_reader r;
 	FILE *outf = NULL;
@@ -848,6 +912,20 @@ static int op_upload(const char *path)
 	if (!existing_prefix(fs, prefix, sizeof(prefix)) ||
 	    !under_root(prefix))
 		return out_error(400, "Bad Request", "path escapes root");
+
+	if (md5_hex[0]) {
+		size_t mlen = strlen(md5_hex);
+		size_t i;
+
+		if (mlen != 32)
+			return out_error(400, "Bad Request", "invalid md5");
+		for (i = 0; i < mlen; i++)
+			if (!isxdigit((unsigned char)md5_hex[i]))
+				return out_error(400, "Bad Request",
+						 "invalid md5");
+	}
+	if (size_expect > MAX_UPLOAD_BYTES)
+		return out_error(413, "Payload Too Large", "too large");
 
 	if (!get_boundary(boundary, sizeof(boundary)))
 		return out_error(400, "Bad Request", "missing boundary");
@@ -868,6 +946,7 @@ static int op_upload(const char *path)
 
 	r.len = 0;
 	r.pos = 0;
+	MD5_Init(&md5ctx);
 
 	/* First line must be "--boundary". */
 	if (sr_read_line(&r, partline, sizeof(partline), &plen) != 0 ||
@@ -923,7 +1002,7 @@ static int op_upload(const char *path)
 	pat_len = b_len + 4;
 
 	rc = sr_copy_until_boundary(&r, outf, pat, pat_len, &total,
-				    MAX_UPLOAD_BYTES);
+				    MAX_UPLOAD_BYTES, &md5ctx);
 	if (rc == -3) {
 		fclose(outf);
 		unlink(tmp);
@@ -938,6 +1017,28 @@ static int op_upload(const char *path)
 		fclose(outf);
 		unlink(tmp);
 		return out_error(400, "Bad Request", "malformed multipart");
+	}
+
+	MD5_Final(digest, &md5ctx);
+	md5_hex(digest, hexdigest);
+
+	/* 完整性校验：大小/哈希不一致说明传输或落盘损坏，直接丢弃不发布 */
+	if (size_expect && total != size_expect) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(400, "Bad Request", "size mismatch");
+	}
+	if (md5_hex[0] && strcasecmp(hexdigest, md5_hex) != 0) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(400, "Bad Request", "checksum mismatch");
+	}
+
+	/* 数据落盘后再发布：掉电不能把截断文件 rename 成正式名 */
+	if (fsync(fd) != 0) {
+		fclose(outf);
+		unlink(tmp);
+		return out_error(500, "Internal Server Error", "fsync failed");
 	}
 	if (fclose(outf) != 0) {
 		unlink(tmp);
@@ -958,10 +1059,12 @@ static int op_upload(const char *path)
 		}
 		rc = publish_part(tmp, final_path);
 		if (rc == 0) {
+			fsync_parent_dir(final_path);
 			out_header(201, "Created");
 			printf("{\"ok\":true,\"items\":[],\"path\":");
 			print_href(final_path, false);
-			printf("}\n");
+			printf(",\"size\":%llu,\"md5\":\"%s\"}\n",
+			       (unsigned long long)total, hexdigest);
 			return 0;
 		}
 		if (rc == -2)
@@ -1177,14 +1280,70 @@ static int op_register(void)
 	return 0;
 }
 
+/*
+ * op=delete (DELETE, path=<url-encoded>): 删除一个文件并连带删除它的派生
+ * 文件（.thumb.jpg / .preview.jpg / .preview.mp4）。一次请求代替客户端
+ * 原来逐张发的 4 次 DELETE；目标不存在返回 404（客户端按幂等成功处理）。
+ * 目录不允许删（405）。删除后 fsync 目录，保证目录项修改落盘。
+ */
+static int op_delete(const char *path)
+{
+	static const char *const derived[] = {
+		".thumb.jpg", ".preview.jpg", ".preview.mp4"
+	};
+	char fs[PATH_MAX];
+	char prefix[PATH_MAX];
+	char dp[PATH_MAX];
+	const char *name;
+	struct stat st;
+	size_t i;
+
+	if (!make_fs_path(path, fs, sizeof(fs)))
+		return out_error(400, "Bad Request", "invalid path");
+	if (!existing_prefix(fs, prefix, sizeof(prefix)) ||
+	    !under_root(prefix))
+		return out_error(400, "Bad Request", "path escapes root");
+	if (lstat(fs, &st) != 0) {
+		if (errno == ENOENT)
+			return out_error(404, "Not Found", "not_found");
+		return out_error(500, "Internal Server Error",
+				 strerror(errno));
+	}
+	if (S_ISDIR(st.st_mode))
+		return out_error(405, "Method Not Allowed", "is a directory");
+
+	if (unlink(fs) != 0)
+		return out_error(500, "Internal Server Error",
+				 strerror(errno));
+
+	/* 派生兄弟文件一并删；目标本身已是派生文件/中间文件时不再嵌套删 */
+	name = strrchr(fs, '/');
+	name = name ? name + 1 : fs;
+	if (!is_derived_name(name) && !is_part_name(name)) {
+		for (i = 0; i < sizeof(derived) / sizeof(derived[0]); i++) {
+			if (derived_path(fs, derived[i], dp, sizeof(dp)) == 0)
+				unlink(dp); /* 不存在忽略（ENOENT 无妨） */
+		}
+	}
+	fsync_parent_dir(fs);
+
+	out_header(204, "No Content");
+	printf("\n");
+	return 0;
+}
+
 static bool parse_query(const char *qs, char *op, size_t op_sz,
-			char *path, size_t path_sz, int *depth)
+			char *path, size_t path_sz, int *depth,
+			char *md5, size_t md5_sz,
+			unsigned long long *size)
 {
 	char buf[MAX_QS_LEN + 1];
 	char *tok;
 
 	op[0] = '\0';
 	path[0] = '\0';
+	md5[0] = '\0';
+	*size = 0;
 	*depth = 1;
 
 	if (!qs || strlen(qs) >= sizeof(buf))
@@ -1206,6 +1365,14 @@ static bool parse_query(const char *qs, char *op, size_t op_sz,
 				return false;
 		} else if (strncmp(tok, "depth=", 6) == 0) {
 			*depth = atoi(tok + 6);
+		} else if (strncmp(tok, "md5=", 4) == 0) {
+			if (strlen(tok + 4) >= md5_sz)
+				return false;
+			strcpy(md5, tok + 4);
+			if (!percent_decode(md5))
+				return false;
+		} else if (strncmp(tok, "size=", 5) == 0) {
+			*size = strtoull(tok + 5, NULL, 10);
 		}
 	}
 
@@ -1223,11 +1390,14 @@ int main(void)
 	const char *qs = getenv("QUERY_STRING");
 	char op[16];
 	char path[MAX_PATH_LEN];
+	char md5[64];
+	unsigned long long size;
 	int depth;
 
 	if (!user || !*user)
 		return out_error(401, "Unauthorized", "unauthorized");
-	if (!parse_query(qs, op, sizeof(op), path, sizeof(path), &depth))
+	if (!parse_query(qs, op, sizeof(op), path, sizeof(path), &depth,
+			 md5, sizeof(md5), &size))
 		return out_error(400, "Bad Request",
 				 "missing or invalid query");
 
@@ -1237,13 +1407,21 @@ int main(void)
 					 "POST required");
 		if (!path[0])
 			return out_error(400, "Bad Request", "missing path");
-		return op_upload(path);
+		return op_upload(path, md5, size);
 	}
 	if (strcmp(op, "register") == 0) {
 		if (!method || strcmp(method, "POST") != 0)
 			return out_error(405, "Method Not Allowed",
 					 "POST required");
 		return op_register();
+	}
+	if (strcmp(op, "delete") == 0) {
+		if (!method || strcmp(method, "DELETE") != 0)
+			return out_error(405, "Method Not Allowed",
+					 "DELETE required");
+		if (!path[0])
+			return out_error(400, "Bad Request", "missing path");
+		return op_delete(path);
 	}
 	if (method && strcmp(method, "GET") != 0)
 		return out_error(405, "Method Not Allowed", "GET only");
