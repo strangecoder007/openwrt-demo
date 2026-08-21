@@ -1,4 +1,6 @@
-.btn-row { display: flex; margin-bottom: 26rpx; }
+.upload-page { display: flex; flex-direction: column; }
+.section-title { margin: 8rpx 8rpx 30rpx; }
+.btn-row { display: flex; margin: 6rpx 0 40rpx; }
 .btn-row button { flex: 1; height: 150rpx; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .btn-row button + button { margin-left: 20rpx; }
 .pick-emoji { font-size: 44rpx; line-height: 1.2; }
@@ -39,3 +41,11 @@
 .progress-label { font-size: 26rpx; color: #2c4f4b; }
 .progress-pct { font-size: 44rpx; font-weight: 700; color: #d9822b; }
 .progress-sub { font-size: 22rpx; color: #7c9a92; margin-top: 14rpx; word-break: break-all; }
+.version {
+  margin-top: auto;
+  padding-top: 40rpx;
+  text-align: center;
+  font-size: 22rpx;
+  color: #7c9a92;
+  opacity: 0.45;
+}

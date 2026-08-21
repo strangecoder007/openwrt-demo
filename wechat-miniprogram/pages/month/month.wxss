@@ -24,6 +24,7 @@
 .grid { display: flex; flex-wrap: wrap; padding: 0 0 16rpx; }
 .cell {
   position: relative;
+  box-sizing: border-box;
   width: 31.5%;
   margin: 1% 0.75%;
   background: #fff;
