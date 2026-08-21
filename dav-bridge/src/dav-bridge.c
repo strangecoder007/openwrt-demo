@@ -886,7 +886,7 @@ static void md5_hex(const unsigned char d[16], char out[33])
  * is fsync'd too, so a power cut cannot leave a truncated file under a
  * final name.
  */
-static int op_upload(const char *path, const char *md5_hex,
+static int op_upload(const char *path, const char *md5_arg,
 		     unsigned long long size_expect)
 {
 	char fs[PATH_MAX];
@@ -913,14 +913,14 @@ static int op_upload(const char *path, const char *md5_hex,
 	    !under_root(prefix))
 		return out_error(400, "Bad Request", "path escapes root");
 
-	if (md5_hex[0]) {
-		size_t mlen = strlen(md5_hex);
+	if (md5_arg[0]) {
+		size_t mlen = strlen(md5_arg);
 		size_t i;
 
 		if (mlen != 32)
 			return out_error(400, "Bad Request", "invalid md5");
 		for (i = 0; i < mlen; i++)
-			if (!isxdigit((unsigned char)md5_hex[i]))
+			if (!isxdigit((unsigned char)md5_arg[i]))
 				return out_error(400, "Bad Request",
 						 "invalid md5");
 	}
@@ -1028,7 +1028,7 @@ static int op_upload(const char *path, const char *md5_hex,
 		unlink(tmp);
 		return out_error(400, "Bad Request", "size mismatch");
 	}
-	if (md5_hex[0] && strcasecmp(hexdigest, md5_hex) != 0) {
+	if (md5_arg[0] && strcasecmp(hexdigest, md5_arg) != 0) {
 		fclose(outf);
 		unlink(tmp);
 		return out_error(400, "Bad Request", "checksum mismatch");
