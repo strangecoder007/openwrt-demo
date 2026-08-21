@@ -1,11 +1,11 @@
-.btn-row { display: flex; margin-bottom: 28rpx; }
+.btn-row { display: flex; margin-bottom: 26rpx; }
 .btn-row button { flex: 1; height: 150rpx; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .btn-row button + button { margin-left: 20rpx; }
 .pick-emoji { font-size: 44rpx; line-height: 1.2; }
-.pick-title { font-size: 27rpx; font-weight: 600; color: #06ad56; margin-top: 6rpx; }
-.pick-hint { font-size: 20rpx; color: #9aa0a6; margin-top: 4rpx; }
-.btn-outline[disabled] .pick-title { color: #bfe5d0; }
-.file-row { display: flex; align-items: center; padding: 22rpx 0; border-bottom: 1rpx solid #f0f1f2; }
+.pick-title { font-size: 27rpx; font-weight: 600; color: #1c3d3a; margin-top: 6rpx; }
+.pick-hint { font-size: 20rpx; color: #7c9a92; margin-top: 4rpx; }
+.btn-outline[disabled] .pick-title { color: #aab9b4; }
+.file-row { display: flex; align-items: center; padding: 22rpx 0; border-bottom: 1rpx solid #eef1ef; }
 .file-row:last-child { border-bottom: none; }
 .file-icon {
   width: 76rpx;
@@ -17,25 +17,25 @@
   font-size: 36rpx;
   margin-right: 22rpx;
 }
-.file-icon.image { background: #e8f1ff; }
-.file-icon.video { background: #fff4e0; }
+.file-icon.image { background: #e8f1ec; }
+.file-icon.video { background: #fbe7d3; }
 .file-info { flex: 1; }
-.file-name { font-size: 27rpx; color: #1f2329; font-weight: 500; }
-.file-size { font-size: 22rpx; color: #9aa0a6; margin-top: 4rpx; }
+.file-name { font-size: 27rpx; color: #24312e; font-weight: 500; }
+.file-size { font-size: 22rpx; color: #7c9a92; margin-top: 4rpx; }
 .file-status {
   font-size: 21rpx;
   margin-right: 16rpx;
   padding: 4rpx 16rpx;
   border-radius: 999rpx;
-  background: #f2f3f5;
-  color: #4e5969;
+  background: #e3eae6;
+  color: #2c4f4b;
 }
-.file-status.pending { color: #9aa0a6; }
-.file-status.uploading { color: #06ad56; background: #e6f7ee; }
-.file-status.done { color: #06ad56; background: #e6f7ee; }
-.file-remove { font-size: 44rpx; color: #c4c9cd; padding: 0 8rpx; font-weight: 300; }
+.file-status.pending { color: #7c9a92; }
+.file-status.uploading { color: #d9822b; background: #fbe7d3; }
+.file-status.done { color: #2c8a4b; background: #e2f0e7; }
+.file-remove { font-size: 44rpx; color: #aab9b4; padding: 0 8rpx; font-weight: 300; }
 .progress-card { margin-top: 8rpx; }
 .progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16rpx; }
-.progress-label { font-size: 26rpx; color: #4e5969; }
-.progress-pct { font-size: 44rpx; font-weight: 700; color: #06ad56; }
-.progress-sub { font-size: 22rpx; color: #9aa0a6; margin-top: 14rpx; word-break: break-all; }
+.progress-label { font-size: 26rpx; color: #2c4f4b; }
+.progress-pct { font-size: 44rpx; font-weight: 700; color: #d9822b; }
+.progress-sub { font-size: 22rpx; color: #7c9a92; margin-top: 14rpx; word-break: break-all; }

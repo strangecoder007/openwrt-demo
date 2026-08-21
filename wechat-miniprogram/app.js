@@ -1,7 +1,7 @@
 const auth = require('./utils/auth');
 
 App({
-  version: 'v20260821.1',
+  version: 'v20260821.2',
   globalData: { session: null },
   onLaunch() {
     this.globalData.session = auth.loadSession();

@@ -1,54 +1,29 @@
 .home-page { padding: 0 0 160rpx; }
 .hero {
-  position: relative;
   margin: -24rpx -24rpx 0;
-  padding: 56rpx 40rpx 64rpx;
-  background: linear-gradient(150deg, #06ad56 0%, #0b9a6c 100%);
-  border-radius: 0 0 44rpx 44rpx;
+  background: linear-gradient(160deg, #1c3d3a 0%, #2c4f4b 100%);
+  border-radius: 0 0 30rpx 30rpx;
   color: #fff;
-  overflow: hidden;
+  padding: 0 0 56rpx;
 }
-.hero-cloud {
-  position: absolute;
-  right: -30rpx;
-  top: 30rpx;
-  font-size: 200rpx;
-  opacity: 0.14;
-  transform: rotate(-8deg);
-}
+.hero-body { padding: 48rpx 36rpx 0; }
 .hero-title { font-size: 46rpx; font-weight: 700; letter-spacing: 2rpx; }
-.hero-sub { font-size: 25rpx; color: rgba(255, 255, 255, 0.88); margin-top: 12rpx; }
-.month-list { padding: 28rpx 24rpx 0; }
+.hero-sub { font-size: 24rpx; color: rgba(255, 255, 255, 0.72); margin-top: 12rpx; }
+.hero-rule { width: 72rpx; height: 6rpx; border-radius: 3rpx; background: #d9822b; margin-top: 24rpx; }
+.month-list { padding: 26rpx 24rpx 0; }
 .month-card {
   display: flex;
   align-items: center;
   background: #fff;
-  border-radius: 24rpx;
-  padding: 28rpx 30rpx;
-  margin-bottom: 20rpx;
-  box-shadow: 0 6rpx 24rpx rgba(31, 35, 41, 0.05);
+  border: 1rpx solid #e3eae6;
+  border-radius: 14rpx;
+  padding: 26rpx 28rpx;
+  margin-bottom: 18rpx;
+  box-shadow: 0 6rpx 20rpx rgba(28, 61, 58, 0.05);
 }
 .month-card.press { opacity: 0.85; }
-.month-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 44rpx;
-  margin-right: 24rpx;
-}
-.month-icon.c0 { background: #e6f7ee; }
-.month-icon.c1 { background: #e8f1ff; }
-.month-icon.c2 { background: #fff3e0; }
-.month-icon.c3 { background: #f3e8ff; }
+.month-accent { width: 8rpx; height: 64rpx; border-radius: 4rpx; background: #d9822b; margin-right: 22rpx; }
 .month-info { flex: 1; }
-.month-name { font-size: 32rpx; font-weight: 600; color: #1f2329; }
-.month-count { font-size: 24rpx; color: #9aa0a6; margin-top: 6rpx; }
-.month-arrow {
-  font-size: 40rpx;
-  color: #06ad56;
-  opacity: 0.55;
-  font-weight: 300;
-}
+.month-name { font-size: 38rpx; font-weight: 700; color: #1c3d3a; letter-spacing: 1rpx; }
+.month-count { font-size: 22rpx; color: #7c9a92; margin-top: 6rpx; }
+.month-arrow { font-size: 38rpx; color: #1c3d3a; opacity: 0.4; font-weight: 300; }

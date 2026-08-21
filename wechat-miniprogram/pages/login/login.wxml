@@ -1,9 +1,11 @@
 <view class="page login-page">
-  <view class="hero-bg"></view>
-  <view class="brand">
-    <view class="logo">☁️</view>
-    <view class="title">我的云盘</view>
-    <view class="subtitle">连接板子，备份照片与视频</view>
+  <view class="hero">
+    <view class="film-strip"></view>
+    <view class="hero-body">
+      <view class="logo">☁️</view>
+      <view class="title">我的云盘</view>
+      <view class="subtitle">家里的照片，都存在这儿</view>
+    </view>
   </view>
 
   <view class="card">
@@ -22,7 +24,7 @@
     <view class="remember-row">
       <checkbox-group bindchange="onToggleRemember">
         <label class="remember-label">
-          <checkbox value="remember" checked="{{remember}}" color="#06ad56" />记住密码
+          <checkbox value="remember" checked="{{remember}}" color="#d9822b" />记住密码
         </label>
       </checkbox-group>
     </view>

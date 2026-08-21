@@ -1,15 +1,16 @@
 page {
-  background: #f7f8fa;
+  background: #eef1ef;
   font-size: 28rpx;
-  color: #1f2329;
-  line-height: 1.4;
+  color: #24312e;
+  line-height: 1.45;
 }
 
 button {
   font-size: 28rpx;
   margin: 0;
-  padding: 0 24rpx;
+  padding: 0 28rpx;
   line-height: 2.6;
+  box-sizing: border-box;
 }
 
 button::after { border: none; }
@@ -20,56 +21,66 @@ button::after { border: none; }
   min-height: 100vh;
 }
 
+/* 胶片齿孔带：贯穿各页头部的“家庭档案”签名元素 */
+.film-strip {
+  height: 18rpx;
+  background:
+    radial-gradient(circle at 6rpx 9rpx, #eef1ef 0 2.6rpx, transparent 3.2rpx) repeat-x 0 0 / 24rpx 18rpx,
+    #1c3d3a;
+}
+
 .card {
   background: #fff;
-  border-radius: 24rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
-  box-shadow: 0 6rpx 24rpx rgba(31, 35, 41, 0.05);
+  border-radius: 14rpx;
+  padding: 30rpx;
+  margin-bottom: 22rpx;
+  border: 1rpx solid #e3eae6;
+  box-shadow: 0 6rpx 20rpx rgba(28, 61, 58, 0.06);
 }
 
 .btn-primary {
-  background: #06ad56;
+  background: #d9822b;
   color: #fff;
-  border-radius: 20rpx;
-  box-shadow: 0 8rpx 20rpx rgba(6, 173, 86, 0.25);
+  border-radius: 14rpx;
+  box-shadow: 0 8rpx 22rpx rgba(217, 130, 43, 0.28);
 }
 
-.btn-primary[disabled] { background: #bfe5d0; color: #fff; box-shadow: none; }
-.btn-primary.big { height: 96rpx; line-height: 96rpx; font-size: 32rpx; font-weight: 600; letter-spacing: 4rpx; }
+.btn-primary[disabled] { background: #e9c9a3; color: #fff; box-shadow: none; }
+.btn-primary.big { height: 92rpx; line-height: 92rpx; font-size: 30rpx; font-weight: 600; letter-spacing: 4rpx; }
 
 .btn-outline {
   background: #fff;
-  color: #06ad56;
-  border: 2rpx solid #06ad56;
-  border-radius: 20rpx;
+  color: #1c3d3a;
+  border: 2rpx solid #1c3d3a;
+  border-radius: 14rpx;
 }
 
-.btn-outline[disabled] { color: #bfe5d0; border-color: #d8efe3; background: #f7fbf9; }
+.btn-outline[disabled] { color: #aab9b4; border-color: #cfe0da; background: #f6f9f7; }
 
 .btn-ghost {
-  background: #f2f3f5;
-  color: #4e5969;
-  border-radius: 16rpx;
+  background: #e3eae6;
+  color: #2c4f4b;
+  border-radius: 12rpx;
   font-size: 26rpx;
 }
 
 .btn-danger {
-  background: #fa5151;
+  background: #cf4a3a;
   color: #fff;
-  border-radius: 16rpx;
+  border-radius: 12rpx;
   font-size: 26rpx;
 }
 
-.btn-danger[disabled] { background: #f5b8b8; color: #fff; }
+.btn-danger[disabled] { background: #e7b7b0; color: #fff; }
 
 .section-title {
   font-size: 30rpx;
-  font-weight: 600;
+  font-weight: 700;
   margin: 8rpx 8rpx 20rpx;
+  color: #1c3d3a;
 }
 
-.empty { text-align: center; color: #9aa0a6; margin-top: 160rpx; }
+.empty { text-align: center; color: #7c9a92; margin-top: 160rpx; }
 .empty-icon { font-size: 88rpx; margin-bottom: 20rpx; }
 .empty-text { font-size: 26rpx; }
 
@@ -80,12 +91,12 @@ button::after { border: none; }
   width: 108rpx;
   height: 108rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #06ad56, #0b9a6c);
+  background: #d9822b;
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12rpx 32rpx rgba(6, 173, 86, 0.35);
+  box-shadow: 0 12rpx 30rpx rgba(217, 130, 43, 0.35);
   z-index: 10;
 }
 

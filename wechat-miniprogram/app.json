@@ -8,9 +8,9 @@
   ],
   "window": {
     "navigationBarTitleText": "云盘",
-    "navigationBarBackgroundColor": "#06ad56",
+    "navigationBarBackgroundColor": "#1c3d3a",
     "navigationBarTextStyle": "white",
-    "backgroundColor": "#f7f8fa"
+    "backgroundColor": "#eef1ef"
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

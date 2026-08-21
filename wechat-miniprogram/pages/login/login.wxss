@@ -1,73 +1,56 @@
-.login-page {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 60rpx 48rpx;
-  position: relative;
-  overflow: hidden;
+.login-page { padding: 0 24rpx 48rpx; min-height: 100vh; }
+.hero {
+  margin: -24rpx -24rpx 0;
+  background: linear-gradient(168deg, #1c3d3a 0%, #2c4f4b 100%);
+  border-radius: 0 0 30rpx 30rpx;
+  color: #fff;
+  padding: 0 0 64rpx;
 }
-.hero-bg {
-  position: absolute;
-  top: -240rpx;
-  left: -180rpx;
-  right: -180rpx;
-  height: 640rpx;
-  background: linear-gradient(160deg, #d8f5e6 0%, #eafaf3 45%, rgba(234, 250, 243, 0) 100%);
-  border-radius: 0 0 50% 50%;
-  z-index: 0;
-}
-.brand {
-  position: relative;
-  z-index: 1;
-  text-align: center;
-  margin-bottom: 48rpx;
-}
+.hero-body { padding: 64rpx 32rpx 0; text-align: center; }
 .logo {
   width: 128rpx;
   height: 128rpx;
   margin: 0 auto 24rpx;
-  border-radius: 36rpx;
-  background: linear-gradient(135deg, #d9f6e8, #b8ebd3);
-  box-shadow: 0 12rpx 28rpx rgba(6, 173, 86, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 68rpx;
+  font-size: 64rpx;
 }
-.title { font-size: 40rpx; font-weight: 700; }
-.subtitle { font-size: 24rpx; color: #9aa0a6; margin-top: 10rpx; }
-.card { position: relative; z-index: 1; padding: 36rpx 32rpx 32rpx; }
-.field-group { margin-bottom: 32rpx; }
-.field-label { font-size: 24rpx; color: #9aa0a6; display: block; margin-bottom: 12rpx; }
+.title { font-size: 44rpx; font-weight: 700; letter-spacing: 2rpx; }
+.subtitle { font-size: 24rpx; color: rgba(255, 255, 255, 0.72); margin-top: 12rpx; }
+.card { margin: -38rpx 0 0; padding: 34rpx 30rpx 30rpx; position: relative; z-index: 1; }
+.field-group { margin-bottom: 30rpx; }
+.field-label { font-size: 22rpx; color: #7c9a92; display: block; margin-bottom: 10rpx; letter-spacing: 1rpx; }
 .field {
-  background: #f6f7f9;
-  border-radius: 16rpx;
-  padding: 24rpx 26rpx;
+  background: #f2f5f3;
+  border: 1rpx solid #e3eae6;
+  border-radius: 10rpx;
+  padding: 22rpx 24rpx;
   font-size: 28rpx;
 }
 .remember-row {
   display: flex;
   align-items: center;
-  margin: -4rpx 0 32rpx;
+  margin: -2rpx 0 30rpx;
 }
 .remember-label {
   display: flex;
   align-items: center;
-  font-size: 26rpx;
-  color: #666;
+  font-size: 25rpx;
+  color: #5b6f6b;
 }
 .remember-label checkbox {
   transform: scale(0.85);
   margin-right: 4rpx;
 }
-.register-link { text-align: center; font-size: 26rpx; color: #06ad56; margin-top: 28rpx; }
+.register-link { text-align: center; font-size: 26rpx; color: #1c3d3a; margin-top: 26rpx; font-weight: 500; }
 .register-link:active { opacity: 0.7; }
 .version {
-  position: relative;
-  z-index: 1;
   text-align: center;
   font-size: 22rpx;
-  color: #c4c9cd;
-  margin-top: 48rpx;
+  color: #aab9b4;
+  margin-top: 40rpx;
 }

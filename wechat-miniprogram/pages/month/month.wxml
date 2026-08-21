@@ -31,7 +31,7 @@
     <button class="btn-danger" disabled="{{selectedCount === 0}}" bindtap="onDeleteSelected">删除({{selectedCount}})</button>
     <button class="btn-ghost" bindtap="onToggleEdit">完成</button>
   </view>
-  <button wx:if="{{days.length && !editing}}" class="btn-primary edit-fab" bindtap="onToggleEdit">编辑</button>
+  <view wx:if="{{days.length && !editing}}" class="edit-fab" bindtap="onToggleEdit" hover-class="press">编辑</view>
 </view>
 
 <view wx:if="{{videoSrc}}" class="video-overlay" bindtap="closeVideo">

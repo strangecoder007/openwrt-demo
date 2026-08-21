@@ -1,43 +1,37 @@
-.register-page {
-  padding: 60rpx 48rpx 80rpx;
-  position: relative;
-  overflow: hidden;
+.register-page { padding: 0 24rpx 80rpx; }
+.hero {
+  margin: -24rpx -24rpx 0;
+  background: linear-gradient(168deg, #1c3d3a 0%, #2c4f4b 100%);
+  border-radius: 0 0 30rpx 30rpx;
+  color: #fff;
+  padding: 0 0 60rpx;
 }
-.hero-bg {
-  position: absolute;
-  top: -240rpx;
-  left: -180rpx;
-  right: -180rpx;
-  height: 640rpx;
-  background: linear-gradient(160deg, #d8f5e6 0%, #eafaf3 45%, rgba(234, 250, 243, 0) 100%);
-  border-radius: 0 0 50% 50%;
-  z-index: 0;
-}
-.brand { position: relative; z-index: 1; text-align: center; margin-bottom: 40rpx; }
+.hero-body { padding: 60rpx 32rpx 0; text-align: center; }
 .logo {
   width: 128rpx;
   height: 128rpx;
   margin: 0 auto 24rpx;
-  border-radius: 36rpx;
-  background: linear-gradient(135deg, #d9f6e8, #b8ebd3);
-  box-shadow: 0 12rpx 28rpx rgba(6, 173, 86, 0.16);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1rpx solid rgba(255, 255, 255, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 68rpx;
+  font-size: 64rpx;
 }
-.title { font-size: 40rpx; font-weight: 700; }
-.subtitle { font-size: 24rpx; color: #9aa0a6; margin-top: 10rpx; }
-.register-card { position: relative; z-index: 1; padding: 36rpx 32rpx 28rpx; }
+.title { font-size: 44rpx; font-weight: 700; letter-spacing: 2rpx; }
+.subtitle { font-size: 24rpx; color: rgba(255, 255, 255, 0.72); margin-top: 12rpx; }
+.register-card { margin: -36rpx 0 0; padding: 34rpx 30rpx 28rpx; position: relative; z-index: 1; }
 .field-group { margin-bottom: 28rpx; }
-.field-label { font-size: 24rpx; color: #9aa0a6; display: block; margin-bottom: 12rpx; }
+.field-label { font-size: 22rpx; color: #7c9a92; display: block; margin-bottom: 10rpx; letter-spacing: 1rpx; }
 .field {
-  background: #f6f7f9;
-  border-radius: 16rpx;
-  padding: 24rpx 26rpx;
+  background: #f2f5f3;
+  border: 1rpx solid #e3eae6;
+  border-radius: 10rpx;
+  padding: 22rpx 24rpx;
   font-size: 28rpx;
 }
-.divider { height: 2rpx; background: #f0f1f3; margin: 8rpx 0 32rpx; }
+.divider { height: 2rpx; background: #eef1ef; margin: 8rpx 0 30rpx; }
 .btn-primary { margin-top: 12rpx; }
-.btn-primary[disabled] { background: #bfe5d0; color: #fff; box-shadow: none; }
-.tip { font-size: 22rpx; color: #c4c9cd; text-align: center; margin-top: 28rpx; line-height: 1.7; }
+.btn-primary[disabled] { background: #e9c9a3; color: #fff; box-shadow: none; }
+.tip { font-size: 22rpx; color: #aab9b4; text-align: center; margin-top: 28rpx; line-height: 1.7; }
