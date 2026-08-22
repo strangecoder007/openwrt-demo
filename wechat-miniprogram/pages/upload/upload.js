@@ -40,8 +40,11 @@ Page({
   async startUpload() {
     const list = this.data.files;
     if (!list.length) { wx.showToast({ title: '先选择文件', icon: 'none' }); return; }
-    const files = this.data.files.map((f) => Object.assign({}, f, { status: 'pending', percent: 0 }));
-    this.setData({ files, uploading: true, done: 0, total: list.length, percent: 0, filePercent: 0, currentName: '' });
+    // 上次已成功（status==='done'）的不再重传，避免重复文件、也省时间
+    const pending = list.filter((f) => f.status !== 'done');
+    if (!pending.length) { wx.showToast({ title: '没有待上传文件', icon: 'none' }); return; }
+    const files = list.map((f) => Object.assign({}, f, { status: f.status === 'done' ? 'done' : 'pending', percent: 0 }));
+    this.setData({ files, uploading: true, done: 0, total: pending.length, percent: 0, filePercent: 0, currentName: '' });
     // 真实进度目标 + 平滑展示值：进度条保证会动，不会卡在 0 或显示 NaN/null
     let target = 0;
     let smooth = 0;
@@ -61,11 +64,12 @@ Page({
           size: f.size,
           time: f.time,
           tempFilePath: f.tempFilePath,
-          thumbTempFilePath: f.thumbTempFilePath || ''
+          thumbTempFilePath: f.thumbTempFilePath || '',
+          status: f.status
         };
       });
       const dav = getDav();
-      await uploader.uploadFiles({
+      const result = await uploader.uploadFiles({
         dav,
         files: prepared,
         onProgress: (done, total, percent, name, index) => {
@@ -80,8 +84,17 @@ Page({
         }
       });
       target = 100;
-      wx.showToast({ title: '上传完成 ' + prepared.length + ' 个', icon: 'success' });
-      setTimeout(() => wx.navigateBack(), 800);
+      const failed = result.failed || [];
+      // 把最终仍失败的文件标成 fail，用户可看到并再次按“开始上传”只重传这些
+      const failSet = new Set(failed.map((r) => r.index));
+      if (failSet.size) {
+        this.setData({ files: this.data.files.map((x, i) => failSet.has(i) ? Object.assign({}, x, { status: 'fail' }) : x) });
+      }
+      wx.showToast({
+        title: failed.length ? ('完成 ' + result.uploaded + ' 个，失败 ' + failed.length + ' 个') : ('上传完成 ' + result.uploaded + ' 个'),
+        icon: failed.length ? 'none' : 'success'
+      });
+      if (!failed.length) setTimeout(() => wx.navigateBack(), 800);
     } catch (e) {
       wx.showToast({ title: (e && e.message) || '上传失败', icon: 'none' });
     } finally {

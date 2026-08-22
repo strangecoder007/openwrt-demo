@@ -23,6 +23,7 @@
       <view class="file-status {{item.status}}">
         <block wx:if="{{item.status === 'done'}}">✓ 完成</block>
         <block wx:elif="{{item.status === 'uploading'}}">上传中 {{item.percent}}%</block>
+        <block wx:elif="{{item.status === 'fail'}}">失败</block>
         <block wx:else>待上传</block>
       </view>
       <view class="file-remove" bindtap="removeFile" data-index="{{index}}">×</view>

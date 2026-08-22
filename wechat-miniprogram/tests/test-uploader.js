@@ -249,6 +249,82 @@ async function testUploadFilesServerRename() {
   ]);
 }
 
+async function testUploadFilesRetry() {
+  // 5xx 是可重试错误：第一次抛 HTTP 500，重试后成功，结果 uploaded=1、无失败
+  const log = [];
+  let n = 0;
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => {
+      log.push('upload:' + p);
+      n += 1;
+      if (n === 1) { const e = new Error('HTTP 500'); e.code = 500; throw e; }
+      return p;
+    }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg' }
+  ];
+  const res = await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async () => null, makePreview: async () => null,
+    retryDelayMs: 1
+  });
+  assert.strictEqual(res.uploaded, 1);
+  assert.strictEqual(res.failed.length, 0);
+  assert.strictEqual(log.filter((x) => x.indexOf('a.jpg') !== -1).length, 2); // 失败一次+成功后一次
+}
+
+async function testUploadFilesContinueOnFailure() {
+  // 一个文件重试后仍失败：记录到 failed，但不中断整批，后面的文件照传
+  const log = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => {
+      log.push('upload:' + p);
+      if (p.indexOf('bad.jpg') !== -1) { const e = new Error('HTTP 500'); e.code = 500; throw e; } // bad 永远 500
+      return p;
+    }
+  };
+  const files = [
+    { name: 'bad.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://bad.jpg' },
+    { name: 'good.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://good.jpg' }
+  ];
+  const res = await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async () => null, makePreview: async () => null,
+    retries: 2, retryDelayMs: 1
+  });
+  assert.strictEqual(res.failed.length, 1);
+  assert.strictEqual(res.failed[0].name, 'bad.jpg');
+  assert.strictEqual(res.uploaded, 1);
+  assert.ok(log.some((x) => x.indexOf('good.jpg') !== -1)); // bad 失败仍继续传 good
+}
+
+async function testUploadFilesSkipDone() {
+  // status==='done' 的文件在重传时被跳过，不产生 -1 重复文件
+  const log = [];
+  const dav = {
+    mkcol: async () => {},
+    propfind: async () => null,
+    upload: async (p, fp) => { log.push('upload:' + p); return p; }
+  };
+  const files = [
+    { name: 'a.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://a.jpg', status: 'done' },
+    { name: 'b.jpg', type: 'image', size: 1, time: new Date(2026, 7, 18).getTime(), tempFilePath: 'wxfile://b.jpg' }
+  ];
+  const res = await uploadFiles({
+    dav, files, onProgress: () => {},
+    makeThumb: async () => null, makePreview: async () => null
+  });
+  assert.strictEqual(res.total, 1);
+  assert.strictEqual(res.uploaded, 1);
+  assert.ok(log.some((x) => x.indexOf('b.jpg') !== -1));
+  assert.ok(!log.some((x) => x.indexOf('a.jpg') !== -1)); // done 的不再传
+}
+
 testMonthDir(); testContentType(); testMakeFileName(); testThumbPath(); testPreviewPath(); testPreviewVideoPath();
 testUniquePath()
   .then(testNoDerivedWithoutWx)
@@ -258,4 +334,7 @@ testUniquePath()
   .then(testUploadFilesVideoPreview)
   .then(testUploadFilesWithDerived)
   .then(testUploadFilesServerRename)
+  .then(testUploadFilesRetry)
+  .then(testUploadFilesContinueOnFailure)
+  .then(testUploadFilesSkipDone)
   .then(() => console.log('test-uploader OK'));

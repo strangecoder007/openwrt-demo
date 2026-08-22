@@ -1,4 +1,37 @@
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+// 上传级重试：只在“可重试”的错误上重试，避免服务端已落盘但客户端丢响应时
+// 重传造成重复文件。可重试 = HTTP 5xx（服务端处理失败，大概率未发布）或连接级
+// 失败（连接未建立，服务端未收到）。4xx（400 校验失败/413 超限）与超时不算
+// —— 超时可能服务端已写盘，重试会撞出 -1 重复文件（那是断点续传的活）。
+const UPLOAD_RETRIES = 3;
+const UPLOAD_RETRY_DELAY_MS = 1500;
+const CONNECT_RETRY_RE = /unreachable|不可达|refused|拒绝|network|网络|connection|connect/i;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableUploadError(e) {
+  if (e && typeof e.code === 'number' && e.code >= 500) return true;
+  return CONNECT_RETRY_RE.test((e && e.message) || '');
+}
+
+async function withUploadRetry(fn, { attempts = UPLOAD_RETRIES, delayMs = UPLOAD_RETRY_DELAY_MS, onRetry } = {}) {
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (!isRetryableUploadError(e)) throw e; // 不可重试：立即失败
+      if (attempt < attempts) {
+        if (onRetry) onRetry(attempt, e);
+        await sleep(delayMs * attempt);
+      }
+    }
+  }
+  throw lastErr;
+}
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
@@ -126,28 +159,48 @@ async function uniquePath(dav, dirPath, name) {
   }
 }
 
-async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview, compressVideo = makeVideoPreview, fileInfo = getLocalFileInfo }) {
-  const total = files.length;
+async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb, makePreview = makeImagePreview, compressVideo = makeVideoPreview, fileInfo = getLocalFileInfo, retries = UPLOAD_RETRIES, retryDelayMs = UPLOAD_RETRY_DELAY_MS }) {
+  // status==='done' 的文件（上次已成功）跳过，重按“开始上传”不会重复传。
+  const total = files.reduce((n, f) => n + (f.status === 'done' ? 0 : 1), 0);
+  const uploaded = [];
+  const failed = [];
   let done = 0;
   // 同一次上传里已确认存在的月份目录，跳过重复 mkcol（原来每个文件打一次）
   const knownDirs = new Set();
-  for (let i = 0; i < total; i++) {
+  for (let i = 0; i < files.length; i++) {
     const f = files[i];
+    if (f.status === 'done') continue; // 上次已上传成功，重按开始上传不再重传
     if (f.type === 'video' && f.size > MAX_VIDEO_BYTES) {
       throw Object.assign(new Error('视频超过 500MB 限制: ' + f.name), { code: 'TOO_LARGE', file: f });
     }
     const dirPath = '/dav/backup/android/DCIM/' + monthDir(f.time);
-    if (!knownDirs.has(dirPath)) {
-      await dav.mkcol(dirPath);
-      knownDirs.add(dirPath);
+    let path;
+    try {
+      // 核心一步（mkcol 幂等 + 查重 + 取文件信息 + 上传）整体可重试：5xx 或
+      // 连接级失败才重试，且重试期间把当前文件进度回 0，避免进度条卡在上个文件。
+      path = await withUploadRetry(async () => {
+        if (!knownDirs.has(dirPath)) {
+          await dav.mkcol(dirPath);
+          knownDirs.add(dirPath);
+        }
+        const candidate = await uniquePath(dav, dirPath, f.name);
+        const info = await fileInfo(f.tempFilePath);
+        // 服务端会原子分配唯一名（并发同名可能再改成 -N 后缀），以返回的最终
+        // 路径为准；旧版桥返回 null 时回退到客户端查重得到的候选名。
+        return (await dav.upload(candidate, f.tempFilePath, (percent) => {
+          if (onProgress) onProgress(done, total, percent, f.name, i);
+        }, info)) || candidate;
+      }, {
+        attempts: retries,
+        delayMs: retryDelayMs,
+        onRetry: () => { if (onProgress) onProgress(done, total, 0, f.name, i); }
+      });
+    } catch (e) {
+      // 重试后仍失败：记录但不中断整批，多个文件里一个出问题不至于全废。
+      failed.push({ index: i, name: f.name, error: e });
+      done += 1;
+      continue;
     }
-    const candidate = await uniquePath(dav, dirPath, f.name);
-    const info = await fileInfo(f.tempFilePath);
-    // 服务端会原子分配唯一名（并发同名可能再改成 -N 后缀），以返回的最终
-    // 路径为准；旧版桥返回 null 时回退到客户端查重得到的候选名。
-    const path = (await dav.upload(candidate, f.tempFilePath, (percent) => {
-      if (onProgress) onProgress(done, total, percent, f.name, done);
-    }, info)) || candidate;
     // 图片顺带传一张压缩缩略图，月视图就不用下载原图
     if (f.type === 'image') {
       const thumb = await makeThumb(f.tempFilePath);
@@ -172,10 +225,11 @@ async function uploadFiles({ dav, files, onProgress, makeThumb = makeImageThumb,
         try { await dav.upload(thumbPathFor(path), f.thumbTempFilePath); } catch (e) { /* 封面失败不影响原视频 */ }
       }
     }
+    uploaded.push(path);
     done += 1;
-    if (onProgress) onProgress(done, total, 100, f.name, done - 1);
+    if (onProgress) onProgress(done, total, 100, f.name, i);
   }
-  return total;
+  return { total, uploaded: uploaded.length, failed };
 }
 
 module.exports = {
