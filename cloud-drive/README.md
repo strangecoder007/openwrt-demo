@@ -1,6 +1,6 @@
 # 云盘一期（VPN 内 WebDAV 照片备份）部署存档
 
-目标板：正点原子 i.MX6ULL（OpenWrt 19.07，内核 4.1.15），SD 卡 vfat 挂载在
+目标板：正点原子 i.MX6ULL（OpenWrt 19.07，内核 4.1.15），SD 卡（ext4）挂载在
 `/mnt/sd`。手机 FolderSync 经 WireGuard 隧道把 `DCIM/Camera` 单向备份到
 `/mnt/sd/backup/android/DCIM`。
 
@@ -67,7 +67,7 @@
 
 1. **64KB PUT 落盘 0 字节**：lighttpd 1.4.54 mod_webdav 上游 bug
    （论坛 9273）。修复在 1.4.56（commit 8b4abaf498 + 3a766d3d02），已 backport
-   到 1.4.54：见 `feeds-patch/`，构建时 `PKG_RELEASE=2`。SD 是 vfat 时
+    到 1.4.54：见 `feeds-patch/`，构建时 `PKG_RELEASE=2`。SD 是 ext4 时
    O_TMPFILE/linkat 快速路径失败走拷贝回退，chunk 长度没更新导致 0 字节。
 2. **FolderSync 强制 HTTPS**：新版禁明文 HTTP（Android cleartext 策略，官方 FAQ
    明确不可配置），所以 WG 侧加了 8443 自签名 TLS，FolderSync 账户勾选

@@ -9,7 +9,7 @@
 2. **记住密码**：登录页新增“记住密码”（默认开），服务器/账号/密码存独立
    storage `davSavedCred`，下次打开自动回填；取消勾选登录即清除。
 3. **视频上限 500MB**：客户端 `MAX_VIDEO_BYTES = 500MB`，服务端 CGI 请求体
-   上限 512MB（超限 413）；SD 卡 vfat 单文件 4GB 上限不受影响。
+   上限 512MB（超限 413）；SD 卡 2026-08-22 已转 ext4，无单文件 4GB 上限。
 4. **大视频 71% HTTP 500（已修复）**：lighttpd 1.4 先把 POST body 落
    `server.upload-dirs` 临时文件，默认 `/tmp` 是 tmpfs（248MB），427MB 视频
    传到 ~240MB 即写临时文件失败回 500。修复：
@@ -80,7 +80,7 @@
 
 | 层 | 组件 | 说明 |
 | --- | --- | --- |
-| 存储 | lighttpd 1.4.54 + mod_webdav | WebDAV 根目录 `/mnt/sd`，SD 卡 vfat |
+| 存储 | lighttpd 1.4.54 + mod_webdav | WebDAV 根目录 `/mnt/sd`，SD 卡 ext4 |
 | 桥接 | dav-bridge（C CGI） | 微信 `wx.request` 不支持 PROPFIND/MKCOL，桥接为 GET；另提供上传、注册 |
 | 认证 | lighttpd mod_auth（htpasswd） | `/etc/lighttpd/webdav.passwd`，多账号共用云盘 |
 | 客户端 | 微信原生小程序 | pages：login / register / home / month / upload |
@@ -140,7 +140,7 @@
 1. **选型**：轻量 WebDAV（lighttpd mod_webdav）而非 ksmbd/Samba——认证与
    小程序统一（Basic）、CGI 可扩展、OpenWrt 上开销小。
 2. **64KB PUT 落盘 0 字节**：lighttpd 1.4.54 mod_webdav 上游 bug，backport
-   1.4.56 修复；SD vfat 下走拷贝回退路径。
+   1.4.56 修复；SD ext4 下走拷贝回退路径。
 3. **真机 `wx.request` 无 PROPFIND/MKCOL**：`network argv error`，开发工具
    碰巧放行。方案 B 落地 dav-bridge CGI（`op=ls`/`op=mkdir`）。
 4. **二进制上传损坏**：`readFile(encoding:'binary')` + PUT 字符串被 UTF-8
