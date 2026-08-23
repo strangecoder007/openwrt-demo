@@ -20,6 +20,8 @@
 <div class="apptraffic-controls">
     <label><%:Period:%></label>
     <select id="period-select">
+        <option value="600"><%:Last 10 Minutes%></option>
+        <option value="3600"><%:Last Hour%></option>
         <option value="today"><%:Today%></option>
         <option value="yesterday"><%:Yesterday%></option>
         <option value="week"><%:Last 7 Days%></option>
@@ -38,6 +40,8 @@
     <span class="cbi-tab" data-tab="hosts"><%:Devices%></span>
     <span class="cbi-tab" data-tab="categories"><%:Categories%></span>
     <span class="cbi-tab" data-tab="device-apps"><%:Device Apps%></span>
+    <span class="cbi-tab" data-tab="live"><%:Live Trace%></span>
+    <span class="cbi-tab" data-tab="alerts"><%:Alerts%></span>
 </div>
 
 <!-- Applications Tab -->
@@ -198,6 +202,70 @@
         <div class="tr placeholder">
             <div class="td">
                 <em class="spinning"><%:Loading device apps...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Trace Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-live" style="display:none">
+    <div class="head">
+        <div class="pie" style="width:100%">
+            <label><%:Total Traffic Over Time%></label>
+            <canvas id="live-chart" width="640" height="220"></canvas>
+        </div>
+        <div class="kpi">
+            <ul>
+                <li><%:Real-time per-device/app time series (5-minute buckets)%></li>
+                <li><%_<big id="live-buckets">0</big> buckets%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="live-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Device IP%></div>
+            <div class="th left"><%:Application%></div>
+            <div class="th left"><%:Category%></div>
+            <div class="th right"><%:Download%></div>
+            <div class="th right"><%:Upload%></div>
+            <div class="th right"><%:Total%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading live trace...%></em>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Tab -->
+<div class="cbi-section apptraffic-tab-content" id="tab-alerts" style="display:none">
+    <div class="head">
+        <div class="kpi">
+            <ul>
+                <li><%:Alert threshold (MB) per device/app in the selected period%></li>
+                <li>
+                    <input type="number" id="alert-mb-input" value="200" min="1" step="50"
+                           class="cbi-input-text" style="width:90px" />
+                    <button id="alert-apply-btn" class="cbi-button cbi-button-apply"><%:Apply%></button>
+                </li>
+                <li><%_<big id="alerts-count">0</big> alerts%></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="table" id="alerts-table">
+        <div class="tr table-titles">
+            <div class="th left"><%:Device IP%></div>
+            <div class="th left"><%:Application%></div>
+            <div class="th left"><%:Category%></div>
+            <div class="th right"><%:Total Bytes%></div>
+            <div class="th right"><%:Connections%></div>
+        </div>
+        <div class="tr placeholder">
+            <div class="td">
+                <em class="spinning"><%:Loading alerts...%></em>
             </div>
         </div>
     </div>

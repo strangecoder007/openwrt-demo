@@ -33,12 +33,16 @@ var AppTraffic = (function() {
         return n.toString();
     }
 
-    function fetchData(endpoint, callback) {
+    function fetchData(endpoint, callback, extra) {
         var period = document.getElementById('period-select');
-        var periodVal = period ? period.value : 'today';
+        var periodVal = period ? period.value : '3600';
+        var url = L.url('admin/apptraffic/' + endpoint) + '?period=' + periodVal;
+        if (extra) {
+            url += '&' + extra;
+        }
 
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', L.url('admin/apptraffic/' + endpoint) + '?period=' + periodVal, true);
+        xhr.open('GET', url, true);
         xhr.onload = function() {
             if (xhr.status === 200) {
                 try {
@@ -538,6 +542,148 @@ var AppTraffic = (function() {
         });
     }
 
+    function drawLineChart(canvasId, points) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!points || points.length === 0) {
+            ctx.font = '12px sans-serif';
+            ctx.fillStyle = '#999';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+
+        var max = 1;
+        points.forEach(function(p) { if (p.value > max) max = p.value; });
+        var pad = 30, w = canvas.width - 2 * pad, h = canvas.height - 2 * pad;
+
+        // horizontal grid
+        ctx.strokeStyle = '#ddd';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (var i = 0; i <= 4; i++) {
+            var y = pad + h - (h * i / 4);
+            ctx.moveTo(pad, y);
+            ctx.lineTo(pad + w, y);
+        }
+        ctx.stroke();
+
+        // polyline of total bytes per bucket
+        ctx.strokeStyle = '#36A2EB';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for (var j = 0; j < points.length; j++) {
+            var x = pad + (points.length === 1 ? 0 : (j / (points.length - 1)) * w);
+            var yy = pad + h - (points[j].value / max) * h;
+            if (j === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+        }
+        ctx.stroke();
+
+        ctx.font = '10px sans-serif';
+        ctx.fillStyle = '#666';
+        ctx.textAlign = 'left';
+        ctx.fillText(formatBytes(max), pad, pad - 4);
+    }
+
+    function loadLive() {
+        fetchData('timeseries', function(data) {
+            var ph = document.querySelector('#tab-live .placeholder');
+            if (!data || !data.entries || data.entries.length === 0) {
+                if (ph) ph.style.display = '';
+                return;
+            }
+            if (ph) ph.style.display = 'none';
+
+            var entries = data.entries;
+
+            // per-bucket total (for the line chart)
+            var bucketMap = {};
+            entries.forEach(function(e) {
+                var ts = parseInt(e.ts);
+                if (!bucketMap[ts]) bucketMap[ts] = 0;
+                bucketMap[ts] += (e.rx || 0) + (e.tx || 0);
+            });
+            var tsKeys = Object.keys(bucketMap).map(Number).sort(function(a, b) { return a - b; });
+            var points = tsKeys.map(function(t) { return { ts: t, value: bucketMap[t] }; });
+            drawLineChart('live-chart', points);
+            var bucketsEl = document.getElementById('live-buckets');
+            if (bucketsEl) bucketsEl.textContent = tsKeys.length;
+
+            // aggregate per device x app over the window
+            var agg = {};
+            entries.forEach(function(e) {
+                var k = (e.src_ip || '?') + '|' + (e.app || '?');
+                if (!agg[k]) {
+                    agg[k] = { src_ip: e.src_ip || '?', app: e.app || '?',
+                               cat: e.category || '', rx: 0, tx: 0, conn: 0 };
+                }
+                agg[k].rx += e.rx || 0;
+                agg[k].tx += e.tx || 0;
+                agg[k].conn += e.conn || 0;
+            });
+            var rows = Object.keys(agg).map(function(k) {
+                var a = agg[k];
+                a.total = a.rx + a.tx;
+                return a;
+            }).sort(function(a, b) { return b.total - a.total; }).slice(0, 20);
+
+            var columns = [
+                { key: 'src_ip', align: 'left' },
+                { key: 'app', align: 'left' },
+                { key: 'cat', align: 'left' },
+                { key: 'rx', align: 'right' },
+                { key: 'tx', align: 'right' },
+                { key: 'total', align: 'right' }
+            ];
+            var fns = [
+                function(v) { return v || '?'; },
+                function(v) { return v || '?'; },
+                function(v) { return v || '-'; },
+                function(v) { return formatBytes(v); },
+                function(v) { return formatBytes(v); },
+                function(v) { return formatBytes(v); }
+            ];
+            renderTable('live-table', rows, columns, fns);
+        });
+    }
+
+    function loadAlerts() {
+        var mbInput = document.getElementById('alert-mb-input');
+        var mb = mbInput ? mbInput.value : '200';
+
+        fetchData('alerts', function(data) {
+            var ph = document.querySelector('#tab-alerts .placeholder');
+            if (!data || !data.entries) {
+                if (ph) ph.style.display = '';
+                return;
+            }
+            if (ph) ph.style.display = 'none';
+
+            var rows = data.entries;
+            var countEl = document.getElementById('alerts-count');
+            if (countEl) countEl.textContent = formatNumber(rows.length);
+
+            var columns = [
+                { key: 'src_ip', align: 'left' },
+                { key: 'app', align: 'left' },
+                { key: 'category', align: 'left' },
+                { key: 'total_bytes', align: 'right' },
+                { key: 'conn', align: 'right' }
+            ];
+            var fns = [
+                function(v) { return v || '?'; },
+                function(v) { return v || '?'; },
+                function(v) { return v || '-'; },
+                function(v) { return formatBytes(v); },
+                function(v) { return formatNumber(v); }
+            ];
+            renderTable('alerts-table', rows, columns, fns);
+        }, 'alert_mb=' + mb);
+    }
+
     function loadCurrentTab() {
         var activeTab = document.querySelector('#apptraffic-tabs .cbi-tab.active');
         var tabName = activeTab ? activeTab.getAttribute('data-tab') : 'apps';
@@ -548,6 +694,8 @@ var AppTraffic = (function() {
             case 'hosts': loadHosts(); break;
             case 'device-apps': loadDeviceApps(); break;
             case 'categories': loadCategories(); break;
+            case 'live': loadLive(); break;
+            case 'alerts': loadAlerts(); break;
         }
 
         var now = new Date();
@@ -594,6 +742,14 @@ var AppTraffic = (function() {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', function() {
                 loadCurrentTab();
+            });
+        }
+
+        // Alert threshold apply button
+        var alertBtn = document.getElementById('alert-apply-btn');
+        if (alertBtn) {
+            alertBtn.addEventListener('click', function() {
+                loadAlerts();
             });
         }
 

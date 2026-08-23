@@ -14,6 +14,8 @@ function index()
     entry({"admin", "apptraffic", "top_hosts"}, call("action_top_hosts"), nil, 6)
     entry({"admin", "apptraffic", "live"}, call("action_live"), nil, 7)
     entry({"admin", "apptraffic", "device_apps"}, call("action_device_apps"), nil, 8)
+    entry({"admin", "apptraffic", "timeseries"}, call("action_timeseries"), nil, 9)
+    entry({"admin", "apptraffic", "alerts"}, call("action_alerts"), nil, 10)
 end
 
 local function exec_cmd(cmd)
@@ -113,5 +115,33 @@ function action_live()
         http.write(data)
     else
         http.write('{"entries":[],"timestamp":0}')
+    end
+end
+
+function action_timeseries()
+    local http = require "luci.http"
+    local period = http.formvalue("period") or "3600"
+    http.prepare_content("application/json")
+
+    local data = exec_cmd("/usr/sbin/apptraffic -c json -g ts -t " .. period)
+    if data then
+        http.write(data)
+    else
+        http.write('{"entries":[]}')
+    end
+end
+
+function action_alerts()
+    local http = require "luci.http"
+    local period = http.formvalue("period") or "3600"
+    local mb = http.formvalue("alert_mb") or "200"
+    http.prepare_content("application/json")
+
+    local data = exec_cmd("/usr/sbin/apptraffic -c json -g alert -t "
+                          .. period .. " -A " .. mb)
+    if data then
+        http.write(data)
+    else
+        http.write('{"entries":[]}')
     end
 end

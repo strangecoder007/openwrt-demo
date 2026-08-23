@@ -1,0 +1,17 @@
+# L7 protocol signature rules
+# Format: proto,dstport,offset,hexmagic,app,category
+#   proto     tcp | udp | *
+#   dstport   port number or '*' (any)
+#   offset    payload byte offset, or '*'
+#   hexmagic  hex bytes (even count) or '*' (port-only heuristic)
+#   app       application name
+#   category  category
+#
+# SSH identification string
+tcp,22,0,5353482d,SSH,System
+# MS Remote Desktop (TPKT header)
+tcp,3389,0,030000130e,RDP,System
+# QQ / OICQ (UDP, port heuristic)
+udp,8000,*,*,QQ,Messaging
+# QQ (also seen on TCP)
+tcp,8000,*,*,QQ,Messaging

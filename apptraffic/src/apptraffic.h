@@ -1,5 +1,10 @@
 /*
  * apptraffic - Application-aware traffic analysis tool for OpenWrt
+ *
+ * Shared declarations for all modules. The packet-side logic lives in
+ * capture.c / proto.c / tcp_reasm.c / ipreasm.c, the DNS+app-mapping in
+ * dnsmap.c, while config/daemon/conntrack/db/output stay in main.c.
+ *
  * Copyright (C) 2024
  * Licensed under GPL-2.0
  */
@@ -24,7 +29,7 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
-/* Maximum number of IP→domain mappings in memory */
+/* Maximum number of IP->domain mappings in memory */
 #define MAX_DNS_CACHE      65536
 #define MAX_FLOW_ENTRIES   32768
 
@@ -34,9 +39,14 @@
 #define COMMIT_INTERVAL    60      /* commit every 60 seconds */
 #define RETENTION_DAYS     30      /* keep per-flow daily aggregates for 30 days */
 
+/* Time-series bucket (seconds). Stored as the "day" column holds
+ * last_seen / TS_BUCKET so per-app traffic can be binned over time. */
+#define TS_BUCKET          300
+
 /* Default paths */
 #define DEFAULT_DB_PATH    "/var/lib/apptraffic"
 #define DEFAULT_APP_MAP    "/usr/share/apptraffic/app-mapping.txt"
+#define DEFAULT_L7_RULES   "/usr/share/apptraffic/l7-rules.txt"
 
 /* DNS record types (standard values from arpa/nameser.h) */
 #ifndef DNS_TYPE_A
@@ -53,6 +63,7 @@ struct dns_entry {
     int             is_v6;
     char            domain[256];   /* resolved domain name */
     time_t          expires;       /* when this entry expires */
+    uint8_t         confidence;    /* 1=DNS, 2=SNI/HTTP (exact host) */
     struct dns_entry *next;
 };
 
@@ -108,6 +119,7 @@ struct config {
     int             dns_timeout;
     int             flow_timeout;
     int             retention_days;
+    int             alert_mb;      /* alert threshold (MB) in a query window, 0=off */
     int             daemon_mode;
     char            output_format[16];
     char            group_by[32];
@@ -115,42 +127,40 @@ struct config {
     char            csv_delim[4];
 };
 
-/* Database handle */
+/* Database handle (opaque; defined in main.c) */
 struct db_handle;
 
-/* Function declarations */
+/* Globals shared across modules (defined in main.c) */
+extern struct config g_config;
+extern int g_running;
 
-/* Packet capture */
-int  capture_init(const char *iface);
-void *capture_run(void *arg);
-void capture_stop(void);
-void capture_set_dns_callback(void (*cb)(const char *domain, uint32_t ip, int is_v6, const uint8_t *ip6));
-void capture_set_sni_callback(void (*cb)(const char *domain, uint32_t ip));
+/* Capture callbacks installed by main.c and invoked from the capture thread */
+typedef void (*apptraffic_dns_cb)(const char *domain, uint32_t ip, int is_v6,
+                                  const uint8_t *ip6);
+typedef void (*apptraffic_sni_cb)(const char *domain, uint32_t ip, int is_v6,
+                                  const uint8_t *ip6);
 
-/* Conntrack flow reading */
+/* Conntrack flow reading (implemented in main.c) */
 int  conntrack_init(void);
 void conntrack_update(void);
-void conntrack_foreach_flow(void (*cb)(struct flow_entry *flow, void *user), void *user);
+void conntrack_foreach_flow(void (*cb)(struct flow_entry *flow, void *user),
+                            void *user);
 
-/* Domain→app mapping */
-int  mapping_load(const char *path);
-const char *mapping_lookup_app(const char *domain);
-const char *mapping_lookup_category(const char *domain);
-const char *mapping_lookup_domain(uint32_t ip);
-void mapping_add_dns(const char *domain, uint32_t ip, int is_v6, const uint8_t *ip6);
-void mapping_expire_dns(void);
-
-/* SQLite database */
+/* SQLite database (implemented in main.c) */
 struct db_handle *database_open(const char *path);
 void database_close(struct db_handle *db);
-int  database_store_flow(struct db_handle *db, struct flow_entry *flow, const char *app, const char *domain);
+int  database_store_flow(struct db_handle *db, struct flow_entry *flow,
+                         const char *app, const char *domain,
+                         const char *category);
 int  database_commit(struct db_handle *db);
 int  database_prune(struct db_handle *db, int retention_days);
-struct traffic_stat *database_query(struct db_handle *db, const char *group_by, const char *period);
+struct traffic_stat *database_query(struct db_handle *db, const char *group_by,
+                                    const char *period);
 void database_free_stats(struct traffic_stat *stats);
 
-/* Output formatters */
+/* Output formatters (implemented in main.c) */
 void output_json(struct traffic_stat *stats, const char *group_by);
-void output_csv(struct traffic_stat *stats, const char *group_by, const char *delim);
+void output_csv(struct traffic_stat *stats, const char *group_by,
+                const char *delim);
 
 #endif /* APPTRAFFIC_H */

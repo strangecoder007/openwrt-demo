@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apptraffic
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=2
+PKG_RELEASE:=10
 
 PKG_MAINTAINER:=OpenWrt Community
 PKG_LICENSE:=GPL-2.0
@@ -54,6 +54,12 @@ define Build/Compile
 		-I$(STAGING_DIR)/usr/include \
 		-o $(PKG_BUILD_DIR)/apptraffic \
 		$(PKG_BUILD_DIR)/main.c \
+		$(PKG_BUILD_DIR)/capture.c \
+		$(PKG_BUILD_DIR)/proto.c \
+		$(PKG_BUILD_DIR)/tcp_reasm.c \
+		$(PKG_BUILD_DIR)/ipreasm.c \
+		$(PKG_BUILD_DIR)/dnsmap.c \
+		$(PKG_BUILD_DIR)/l7.c \
 		-L$(STAGING_DIR)/usr/lib \
 		-lpcap -lsqlite3 -lpthread
 endef
@@ -64,6 +70,7 @@ define Package/apptraffic/install
 
 	$(INSTALL_DIR) $(1)/usr/share/apptraffic
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/app-mapping.txt $(1)/usr/share/apptraffic/app-mapping.txt
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/l7-rules.txt $(1)/usr/share/apptraffic/l7-rules.txt
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/apptraffic.init $(1)/etc/init.d/apptraffic
@@ -78,6 +85,7 @@ endef
 define Package/apptraffic/conffiles
 /etc/config/apptraffic
 /usr/share/apptraffic/app-mapping.txt
+/usr/share/apptraffic/l7-rules.txt
 endef
 
 $(eval $(call BuildPackage,apptraffic))
