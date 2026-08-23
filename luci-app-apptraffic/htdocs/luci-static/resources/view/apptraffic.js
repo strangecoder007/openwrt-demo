@@ -546,6 +546,14 @@ var AppTraffic = (function() {
         var canvas = document.getElementById(canvasId);
         if (!canvas) return;
         var ctx = canvas.getContext('2d');
+
+        // Resize to the row's content width so the line is legible on wide screens
+        var parent = canvas.parentElement;
+        var cw = parent && parent.clientWidth ? parent.clientWidth : 820;
+        if (cw < 500) cw = 500;
+        canvas.width = cw;
+        canvas.height = 340;
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         if (!points || points.length === 0) {
