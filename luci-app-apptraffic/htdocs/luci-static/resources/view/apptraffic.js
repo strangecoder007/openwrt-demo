@@ -33,6 +33,11 @@ var AppTraffic = (function() {
         return n.toString();
     }
 
+    function setText(id, v) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = v;
+    }
+
     function fetchData(endpoint, callback, extra) {
         var period = document.getElementById('period-select');
         var periodVal = period ? period.value : '3600';
@@ -58,6 +63,25 @@ var AppTraffic = (function() {
         };
         xhr.onerror = function() { callback(null); };
         xhr.send();
+    }
+
+    function updateSummary() {
+        fetchData('top_apps', function(d) {
+            var rx = 0, tx = 0, apps = 0;
+            if (d && d.entries) {
+                apps = d.entries.length;
+                d.entries.forEach(function(e) {
+                    rx += e.rx_bytes || 0;
+                    tx += e.tx_bytes || 0;
+                });
+            }
+            setText('sum-rx', formatBytes(rx));
+            setText('sum-tx', formatBytes(tx));
+            setText('sum-apps', formatNumber(apps));
+        });
+        fetchData('top_hosts', function(d) {
+            setText('sum-devices', (d && d.entries) ? formatNumber(d.entries.length) : '0');
+        });
     }
 
     function createPieChart(canvasId, data) {
@@ -235,6 +259,7 @@ var AppTraffic = (function() {
             // Table
             var columns = [
                 { key: 'app_name', align: 'left' },
+                { key: 'app_category', align: 'left' },
                 { key: 'connections', align: 'right' },
                 { key: 'rx_bytes', align: 'right' },
                 { key: 'tx_bytes', align: 'right' },
@@ -243,6 +268,7 @@ var AppTraffic = (function() {
             ];
             var formatters = [
                 function(v) { return v || 'Unknown'; },
+                function(v) { return v || 'General'; },
                 function(v) { return formatNumber(v); },
                 function(v) { return formatBytes(v); },
                 function(v) { return formatBytes(v); },
@@ -335,6 +361,7 @@ var AppTraffic = (function() {
             var columns = [
                 { key: 'src_ip', align: 'left' },
                 { key: 'app_name', align: 'left' },
+                { key: 'app_category', align: 'left' },
                 { key: 'connections', align: 'right' },
                 { key: 'rx_bytes', align: 'right' },
                 { key: 'tx_bytes', align: 'right' },
@@ -343,6 +370,7 @@ var AppTraffic = (function() {
             var formatters = [
                 function(v) { return v || 'Unknown'; },
                 function(v) { return v || '-'; },
+                function(v) { return v || 'General'; },
                 function(v) { return formatNumber(v); },
                 function(v) { return formatBytes(v); },
                 function(v) { return formatBytes(v); },
@@ -565,35 +593,56 @@ var AppTraffic = (function() {
         }
 
         var max = 1;
-        points.forEach(function(p) { if (p.value > max) max = p.value; });
-        var pad = 30, w = canvas.width - 2 * pad, h = canvas.height - 2 * pad;
+        points.forEach(function(p) {
+            if ((p.rx || 0) > max) max = p.rx || 0;
+            if ((p.tx || 0) > max) max = p.tx || 0;
+        });
+        var padL = 46, padT = 24, padR = 16, padB = 28;
+        var w = canvas.width - padL - padR;
+        var h = canvas.height - padT - padB;
 
         // horizontal grid
         ctx.strokeStyle = '#ddd';
         ctx.lineWidth = 1;
         ctx.beginPath();
         for (var i = 0; i <= 4; i++) {
-            var y = pad + h - (h * i / 4);
-            ctx.moveTo(pad, y);
-            ctx.lineTo(pad + w, y);
+            var y = padT + h - (h * i / 4);
+            ctx.moveTo(padL, y);
+            ctx.lineTo(padL + w, y);
         }
         ctx.stroke();
 
-        // polyline of total bytes per bucket
-        ctx.strokeStyle = '#36A2EB';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (var j = 0; j < points.length; j++) {
-            var x = pad + (points.length === 1 ? 0 : (j / (points.length - 1)) * w);
-            var yy = pad + h - (points[j].value / max) * h;
-            if (j === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+        function drawLine(key, color) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (var j = 0; j < points.length; j++) {
+                var x = padL + (points.length === 1 ? 0 : (j / (points.length - 1)) * w);
+                var yy = padT + h - ((points[j][key] || 0) / max) * h;
+                if (j === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+            }
+            ctx.stroke();
         }
-        ctx.stroke();
+        drawLine('rx', '#36A2EB');
+        drawLine('tx', '#4BC0C0');
 
+        // y-axis max
         ctx.font = '10px sans-serif';
         ctx.fillStyle = '#666';
         ctx.textAlign = 'left';
-        ctx.fillText(formatBytes(max), pad, pad - 4);
+        ctx.fillText(formatBytes(max), padL, padT - 6);
+
+        // x-axis start/end time (HH:MM)
+        function fmt(ts) {
+            var d = new Date(ts * 1000);
+            function p2(n) { return (n < 10 ? '0' : '') + n; }
+            return p2(d.getHours()) + ':' + p2(d.getMinutes());
+        }
+        ctx.fillStyle = '#999';
+        ctx.textAlign = 'left';
+        ctx.fillText(fmt(points[0].ts), padL, canvas.height - 8);
+        ctx.textAlign = 'right';
+        ctx.fillText(fmt(points[points.length - 1].ts), padL + w, canvas.height - 8);
     }
 
     function loadLive() {
@@ -607,15 +656,18 @@ var AppTraffic = (function() {
 
             var entries = data.entries;
 
-            // per-bucket total (for the line chart)
+            // per-bucket RX/TX (for the line chart)
             var bucketMap = {};
             entries.forEach(function(e) {
                 var ts = parseInt(e.ts);
-                if (!bucketMap[ts]) bucketMap[ts] = 0;
-                bucketMap[ts] += (e.rx || 0) + (e.tx || 0);
+                if (!bucketMap[ts]) bucketMap[ts] = { rx: 0, tx: 0 };
+                bucketMap[ts].rx += e.rx || 0;
+                bucketMap[ts].tx += e.tx || 0;
             });
             var tsKeys = Object.keys(bucketMap).map(Number).sort(function(a, b) { return a - b; });
-            var points = tsKeys.map(function(t) { return { ts: t, value: bucketMap[t] }; });
+            var points = tsKeys.map(function(t) {
+                return { ts: t, rx: bucketMap[t].rx, tx: bucketMap[t].tx };
+            });
             drawLineChart('live-chart', points);
             var bucketsEl = document.getElementById('live-buckets');
             if (bucketsEl) bucketsEl.textContent = tsKeys.length;
@@ -742,6 +794,7 @@ var AppTraffic = (function() {
         if (periodSelect) {
             periodSelect.addEventListener('change', function() {
                 loadCurrentTab();
+                updateSummary();
             });
         }
 
@@ -750,6 +803,7 @@ var AppTraffic = (function() {
         if (refreshBtn) {
             refreshBtn.addEventListener('click', function() {
                 loadCurrentTab();
+                updateSummary();
             });
         }
 
@@ -763,11 +817,13 @@ var AppTraffic = (function() {
 
         // Load initial data
         switchTab('apps');
+        updateSummary();
 
         // Auto-refresh every 30 seconds
         setInterval(function() {
             if (document.visibilityState === 'visible') {
                 loadCurrentTab();
+                updateSummary();
             }
         }, 30000);
     }

@@ -33,6 +33,42 @@
     margin-left: auto;
 }
 
+/* Summary bar */
+.apptraffic-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 28px;
+    padding: 10px 15px;
+    margin: 0 0 12px;
+    background: #f0f6fc;
+    border: 1px solid #dbe7f3;
+    border-radius: 4px;
+    font-size: 0.9em;
+    color: #555;
+}
+.apptraffic-summary .s-item strong {
+    color: #333;
+    font-size: 1.15em;
+    margin-left: 4px;
+}
+
+/* Chart legend */
+.apptraffic-legend {
+    display: inline-flex;
+    gap: 16px;
+    font-size: 0.85em;
+    color: #555;
+    margin-top: 6px;
+}
+.apptraffic-legend .swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    vertical-align: middle;
+    border-radius: 2px;
+}
+
 /* Tab menu */
 #apptraffic-tabs {
     margin-bottom: 0;
