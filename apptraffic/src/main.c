@@ -18,6 +18,12 @@
 #include "ipreasm.h"
 #include "l7.h"
 #include <getopt.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/netfilter.h>
+#include <linux/netfilter/nfnetlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 
 /* Global state */
 struct config g_config;
@@ -42,149 +48,72 @@ static inline unsigned int hash_flow(uint32_t src_ip, uint32_t dst_ip,
 
 int conntrack_init(void)
 {
-    /* We'll read from /proc/net/nf_conntrack for simplicity */
     return 0;
 }
 
-void conntrack_update(void)
+/* Update (or create) one flow entry from a conntrack observation. Counters are
+ * cumulative since the connection started; rx is the reply direction, tx the
+ * original. Caller must hold flow_mutex. */
+static void flow_ingest(uint32_t src_ip, uint32_t dst_ip, uint16_t src_port,
+                        uint16_t dst_port, uint8_t proto,
+                        uint64_t rx_bytes, uint64_t tx_bytes,
+                        uint64_t rx_packets, uint64_t tx_packets, time_t now)
 {
-    FILE *fp = fopen("/proc/net/nf_conntrack", "r");
-    if (!fp) {
-        fp = fopen("/proc/net/ip_conntrack", "r");
-        if (!fp) return;
+    if (src_ip == 0 || dst_ip == 0) return;
+    if (rx_bytes == 0 && tx_bytes == 0) return;
+
+    unsigned int idx = hash_flow(src_ip, dst_ip, src_port, dst_port, proto);
+    struct flow_entry *flow = flow_hash[idx];
+    int found = 0;
+    while (flow) {
+        if (flow->src_ip == src_ip && flow->dst_ip == dst_ip &&
+            flow->src_port == src_port && flow->dst_port == dst_port &&
+            flow->protocol == proto) {
+            found = 1;
+            break;
+        }
+        flow = flow->next;
     }
 
-    pthread_mutex_lock(&flow_mutex);
-
-    char line[1024];
-    time_t now = time(NULL);
-
-    while (fgets(line, sizeof(line), fp)) {
-        uint32_t src_ip = 0, dst_ip = 0;
-        uint16_t src_port = 0, dst_port = 0;
-        uint8_t protocol = IPPROTO_TCP;
-        uint64_t rx_bytes = 0, tx_bytes = 0;
-        uint64_t rx_packets = 0, tx_packets = 0;
-
-        if (strncmp(line, "ipv4", 4) != 0) continue;
-
-        int src_cnt = 0, dst_cnt = 0, sport_cnt = 0, dport_cnt = 0;
-        int pkt_cnt = 0, byte_cnt = 0;
-
-        char *tok = strtok(line, " \t");
-        int field = 0;
-
-        while (tok) {
-            /* token layout: ipv4 2 <proto-name> <proto-num> <timeleft> ...
-             * token[3] is the numeric protocol (6=tcp,17=udp,1=icmp), which is
-             * stable across reads. Reading token[4] (timeleft) instead made the
-             * protocol change every 5s and split one connection into many flows,
-             * massively double-counting bytes. */
-            if (field == 3) {
-                protocol = atoi(tok);
-            }
-
-            char *eq = strchr(tok, '=');
-            if (eq) {
-                *eq = '\0';
-                char *key = tok;
-                char *val = eq + 1;
-
-                if (strcmp(key, "src") == 0) {
-                    src_cnt++;
-                    if (src_cnt == 1)
-                        inet_pton(AF_INET, val, &src_ip);
-                } else if (strcmp(key, "dst") == 0) {
-                    dst_cnt++;
-                    if (dst_cnt == 1)
-                        inet_pton(AF_INET, val, &dst_ip);
-                } else if (strcmp(key, "sport") == 0) {
-                    sport_cnt++;
-                    if (sport_cnt == 1)
-                        src_port = atoi(val);
-                } else if (strcmp(key, "dport") == 0) {
-                    dport_cnt++;
-                    if (dport_cnt == 1)
-                        dst_port = atoi(val);
-                } else if (strcmp(key, "packets") == 0) {
-                    pkt_cnt++;
-                    if (pkt_cnt == 1)
-                        tx_packets = strtoull(val, NULL, 10);
-                    else
-                        rx_packets = strtoull(val, NULL, 10);
-                } else if (strcmp(key, "bytes") == 0) {
-                    byte_cnt++;
-                    if (byte_cnt == 1)
-                        tx_bytes = strtoull(val, NULL, 10);
-                    else
-                        rx_bytes = strtoull(val, NULL, 10);
-                }
-                *eq = '=';
-            }
-
-            tok = strtok(NULL, " \t\n");
-            field++;
-        }
-
-        if (src_ip == 0 || dst_ip == 0) continue;
-        if (rx_bytes == 0 && tx_bytes == 0) continue;
-
-        unsigned int idx = hash_flow(src_ip, dst_ip, src_port, dst_port,
-                                     protocol);
-        struct flow_entry *flow = flow_hash[idx];
-        int found = 0;
-
-        while (flow) {
-            if (flow->src_ip == src_ip && flow->dst_ip == dst_ip &&
-                flow->src_port == src_port && flow->dst_port == dst_port &&
-                flow->protocol == protocol) {
-                found = 1;
-                break;
-            }
-            flow = flow->next;
-        }
-
-        if (!found) {
-            flow = calloc(1, sizeof(*flow));
-            if (!flow) continue;
-            flow->src_ip = src_ip;
-            flow->dst_ip = dst_ip;
-            flow->src_port = src_port;
-            flow->dst_port = dst_port;
-            flow->protocol = protocol;
-            flow->first_seen = now;
-            flow->next = flow_hash[idx];
-            flow_hash[idx] = flow;
-        }
-
-        if (found) {
-            int64_t drx, dtx, drxp, dtxp;
-            drx  = (int64_t)rx_bytes  - (int64_t)flow->prev_rx_bytes;
-            dtx  = (int64_t)tx_bytes  - (int64_t)flow->prev_tx_bytes;
-            drxp = (int64_t)rx_packets - (int64_t)flow->prev_rx_packets;
-            dtxp = (int64_t)tx_packets - (int64_t)flow->prev_tx_packets;
-
-            if (drx > 0)  { flow->rx_bytes  += (uint64_t)drx;  flow->dirty = 1; }
-            if (dtx > 0)  { flow->tx_bytes  += (uint64_t)dtx;  flow->dirty = 1; }
-            if (drxp > 0) { flow->rx_packets += (uint64_t)drxp; flow->dirty = 1; }
-            if (dtxp > 0) { flow->tx_packets += (uint64_t)dtxp; flow->dirty = 1; }
-        } else {
-            flow->rx_bytes  += rx_bytes;
-            flow->tx_bytes  += tx_bytes;
-            flow->rx_packets += rx_packets;
-            flow->tx_packets += tx_packets;
-            if (rx_bytes || tx_bytes) flow->dirty = 1;
-        }
-
-        flow->prev_rx_bytes  = rx_bytes;
-        flow->prev_tx_bytes  = tx_bytes;
-        flow->prev_rx_packets = rx_packets;
-        flow->prev_tx_packets = tx_packets;
-        flow->last_seen = now;
+    if (!found) {
+        flow = calloc(1, sizeof(*flow));
+        if (!flow) return;
+        flow->src_ip = src_ip;
+        flow->dst_ip = dst_ip;
+        flow->src_port = src_port;
+        flow->dst_port = dst_port;
+        flow->protocol = proto;
+        flow->first_seen = now;
+        flow->next = flow_hash[idx];
+        flow_hash[idx] = flow;
     }
 
-    fclose(fp);
+    if (found) {
+        int64_t drx = (int64_t)rx_bytes  - (int64_t)flow->prev_rx_bytes;
+        int64_t dtx = (int64_t)tx_bytes  - (int64_t)flow->prev_tx_bytes;
+        int64_t drxp = (int64_t)rx_packets - (int64_t)flow->prev_rx_packets;
+        int64_t dtxp = (int64_t)tx_packets - (int64_t)flow->prev_tx_packets;
+        if (drx > 0)  { flow->rx_bytes  += (uint64_t)drx;  flow->dirty = 1; }
+        if (dtx > 0)  { flow->tx_bytes  += (uint64_t)dtx;  flow->dirty = 1; }
+        if (drxp > 0) { flow->rx_packets += (uint64_t)drxp; flow->dirty = 1; }
+        if (dtxp > 0) { flow->tx_packets += (uint64_t)dtxp; flow->dirty = 1; }
+    } else {
+        flow->rx_bytes  += rx_bytes;
+        flow->tx_bytes  += tx_bytes;
+        flow->rx_packets += rx_packets;
+        flow->tx_packets += tx_packets;
+        if (rx_bytes || tx_bytes) flow->dirty = 1;
+    }
 
+    flow->prev_rx_bytes  = rx_bytes;
+    flow->prev_tx_bytes  = tx_bytes;
+    flow->prev_rx_packets = rx_packets;
+    flow->prev_tx_packets = tx_packets;
+    flow->last_seen = now;
+}
+
+static void flow_expire(time_t now)
+{
     time_t cutoff = now - g_config.flow_timeout;
     for (int i = 0; i < MAX_FLOW_ENTRIES; i++) {
         struct flow_entry **prev = &flow_hash[i];
@@ -200,7 +129,252 @@ void conntrack_update(void)
             }
         }
     }
+}
 
+/* ---- netlink helpers (no libnl dependency) ---- */
+static uint64_t be64_to_host(uint64_t v)
+{
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return __builtin_bswap64(v);
+#else
+    return v;
+#endif
+}
+
+static int nla_ok(const struct nlattr *nla, int len)
+{
+    return len >= (int)sizeof(struct nlattr) &&
+           nla->nla_len >= sizeof(struct nlattr) &&
+           nla->nla_len <= len;
+}
+
+static struct nlattr *nla_next(struct nlattr *nla, int *len)
+{
+    int tot = NLA_ALIGN(nla->nla_len);
+    *len -= tot;
+    return (struct nlattr *)((char *)nla + tot);
+}
+
+static void *nla_data(const struct nlattr *nla)
+{
+    return (void *)((char *)nla + sizeof(struct nlattr));
+}
+
+static int nla_len(const struct nlattr *nla)
+{
+    return (int)nla->nla_len - (int)sizeof(struct nlattr);
+}
+
+static int nla_t(const struct nlattr *nla)
+{
+    return nla->nla_type & NLA_TYPE_MASK;
+}
+
+static void parse_attrs(int len, struct nlattr *attr, struct nlattr **tb, int max)
+{
+    memset(tb, 0, sizeof(struct nlattr *) * (max + 1));
+    while (nla_ok(attr, len)) {
+        int t = nla_t(attr);
+        if (t <= max) tb[t] = attr;
+        attr = nla_next(attr, &len);
+    }
+}
+
+static void parse_tuple(const struct nlattr *tuple, uint32_t *src, uint32_t *dst,
+                        uint8_t *proto, uint16_t *sport, uint16_t *dport)
+{
+    struct nlattr *tb[CTA_TUPLE_MAX + 1];
+    parse_attrs(nla_len(tuple), (struct nlattr *)nla_data(tuple), tb,
+                CTA_TUPLE_MAX);
+    if (tb[CTA_TUPLE_IP]) {
+        struct nlattr *ip[CTA_IP_MAX + 1];
+        parse_attrs(nla_len(tb[CTA_TUPLE_IP]),
+                    (struct nlattr *)nla_data(tb[CTA_TUPLE_IP]),
+                    ip, CTA_IP_MAX);
+        if (ip[CTA_IP_V4_SRC] && nla_len(ip[CTA_IP_V4_SRC]) >= 4)
+            memcpy(src, nla_data(ip[CTA_IP_V4_SRC]), 4);
+        if (ip[CTA_IP_V4_DST] && nla_len(ip[CTA_IP_V4_DST]) >= 4)
+            memcpy(dst, nla_data(ip[CTA_IP_V4_DST]), 4);
+    }
+    if (tb[CTA_TUPLE_PROTO]) {
+        struct nlattr *p[CTA_PROTO_MAX + 1];
+        parse_attrs(nla_len(tb[CTA_TUPLE_PROTO]),
+                    (struct nlattr *)nla_data(tb[CTA_TUPLE_PROTO]),
+                    p, CTA_PROTO_MAX);
+        if (p[CTA_PROTO_NUM] && nla_len(p[CTA_PROTO_NUM]) >= 1)
+            *proto = *(uint8_t *)nla_data(p[CTA_PROTO_NUM]);
+        if (p[CTA_PROTO_SRC_PORT] && nla_len(p[CTA_PROTO_SRC_PORT]) >= 2) {
+            uint16_t v;
+            memcpy(&v, nla_data(p[CTA_PROTO_SRC_PORT]), 2);
+            *sport = ntohs(v);
+        }
+        if (p[CTA_PROTO_DST_PORT] && nla_len(p[CTA_PROTO_DST_PORT]) >= 2) {
+            uint16_t v;
+            memcpy(&v, nla_data(p[CTA_PROTO_DST_PORT]), 2);
+            *dport = ntohs(v);
+        }
+    }
+}
+
+static void parse_counts(const struct nlattr *c, uint64_t *packets,
+                         uint64_t *bytes)
+{
+    struct nlattr *tb[CTA_COUNTERS_MAX + 1];
+    parse_attrs(nla_len(c), (struct nlattr *)nla_data(c), tb,
+                CTA_COUNTERS_MAX);
+    if (tb[CTA_COUNTERS_PACKETS] && nla_len(tb[CTA_COUNTERS_PACKETS]) >= 8) {
+        uint64_t v;
+        memcpy(&v, nla_data(tb[CTA_COUNTERS_PACKETS]), 8);
+        *packets = be64_to_host(v);
+    }
+    if (tb[CTA_COUNTERS_BYTES] && nla_len(tb[CTA_COUNTERS_BYTES]) >= 8) {
+        uint64_t v;
+        memcpy(&v, nla_data(tb[CTA_COUNTERS_BYTES]), 8);
+        *bytes = be64_to_host(v);
+    }
+}
+
+static void handle_ct_msg(struct nlmsghdr *nlh, time_t now)
+{
+    struct nfgenmsg *nfg = (struct nfgenmsg *)NLMSG_DATA(nlh);
+    if (nfg->nfgen_family != AF_INET) return; /* only IPv4 (matches /proc path) */
+
+    int len = (int)nlh->nlmsg_len - (int)NLMSG_LENGTH(sizeof(struct nfgenmsg));
+    struct nlattr *attr = (struct nlattr *)((char *)nfg +
+                                            NLMSG_ALIGN(sizeof(struct nfgenmsg)));
+    uint32_t src = 0, dst = 0;
+    uint8_t proto = IPPROTO_TCP;
+    uint16_t sport = 0, dport = 0;
+    uint64_t rx = 0, tx = 0, rxp = 0, txp = 0;
+
+    while (nla_ok(attr, len)) {
+        int t = nla_t(attr);
+        if (t == CTA_TUPLE_ORIG)
+            parse_tuple(attr, &src, &dst, &proto, &sport, &dport);
+        else if (t == CTA_COUNTERS_ORIG)
+            parse_counts(attr, &txp, &tx);
+        else if (t == CTA_COUNTERS_REPLY)
+            parse_counts(attr, &rxp, &rx);
+        attr = nla_next(attr, &len);
+    }
+    flow_ingest(src, dst, sport, dport, proto, rx, tx, rxp, txp, now);
+}
+
+/* Dump the IPv4 conntrack table via netlink. Returns 0 on success, -1 if the
+ * kernel/interface is unavailable (caller falls back to /proc). */
+static int conntrack_netlink_read(time_t now)
+{
+    int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_NETFILTER);
+    if (fd < 0) return -1;
+    struct sockaddr_nl sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.nl_family = AF_NETLINK;
+    if (bind(fd, (struct sockaddr *)&sa, sizeof(sa)) < 0) { close(fd); return -1; }
+
+    char req[128];
+    memset(req, 0, sizeof(req));
+    struct nlmsghdr *nlh = (struct nlmsghdr *)req;
+    nlh->nlmsg_len = NLMSG_LENGTH(sizeof(struct nfgenmsg));
+    nlh->nlmsg_type = (NFNL_SUBSYS_CTNETLINK << 8) | IPCTNL_MSG_CT_GET;
+    nlh->nlmsg_flags = NLM_F_REQUEST | NLM_F_DUMP;
+    nlh->nlmsg_seq = 1;
+    struct nfgenmsg *nfg = (struct nfgenmsg *)NLMSG_DATA(nlh);
+    nfg->nfgen_family = AF_INET;
+    nfg->version = NFNETLINK_V0;
+    nfg->res_id = 0;
+
+    struct sockaddr_nl dst;
+    memset(&dst, 0, sizeof(dst));
+    dst.nl_family = AF_NETLINK;
+    if (sendto(fd, nlh, nlh->nlmsg_len, 0, (struct sockaddr *)&dst,
+               sizeof(dst)) < 0) { close(fd); return -1; }
+
+    char rbuf[65536];
+    int status = -1;
+    for (;;) {
+        int n = recv(fd, rbuf, sizeof(rbuf), 0);
+        if (n < 0) { if (errno == EINTR) continue; status = -1; break; }
+        if (n == 0) break;
+        for (struct nlmsghdr *h = (struct nlmsghdr *)rbuf;
+             NLMSG_OK(h, n); h = NLMSG_NEXT(h, n)) {
+            if (h->nlmsg_type == NLMSG_DONE) { status = 0; goto out; }
+            if (h->nlmsg_type == NLMSG_ERROR) { status = -1; goto out; }
+            if (h->nlmsg_type == ((NFNL_SUBSYS_CTNETLINK << 8) |
+                                  IPCTNL_MSG_CT_NEW) ||
+                h->nlmsg_type == ((NFNL_SUBSYS_CTNETLINK << 8) |
+                                  IPCTNL_MSG_CT_GET))
+                handle_ct_msg(h, now);
+        }
+    }
+out:
+    close(fd);
+    return status;
+}
+
+/* Fallback: parse /proc/net/nf_conntrack text. */
+static void conntrack_proc_read(time_t now)
+{
+    FILE *fp = fopen("/proc/net/nf_conntrack", "r");
+    if (!fp) fp = fopen("/proc/net/ip_conntrack", "r");
+    if (!fp) return;
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fp)) {
+        uint32_t src_ip = 0, dst_ip = 0;
+        uint16_t src_port = 0, dst_port = 0;
+        uint8_t protocol = IPPROTO_TCP;
+        uint64_t rx = 0, tx = 0, rxp = 0, txp = 0;
+        if (strncmp(line, "ipv4", 4) != 0) continue;
+
+        int src_cnt = 0, dst_cnt = 0, sport_cnt = 0, dport_cnt = 0;
+        int pkt_cnt = 0, byte_cnt = 0;
+        char *tok = strtok(line, " \t");
+        int field = 0;
+        while (tok) {
+            if (field == 3) protocol = atoi(tok);
+            char *eq = strchr(tok, '=');
+            if (eq) {
+                *eq = '\0';
+                char *key = tok, *val = eq + 1;
+                if (strcmp(key, "src") == 0) {
+                    if (++src_cnt == 1) inet_pton(AF_INET, val, &src_ip);
+                } else if (strcmp(key, "dst") == 0) {
+                    if (++dst_cnt == 1) inet_pton(AF_INET, val, &dst_ip);
+                } else if (strcmp(key, "sport") == 0) {
+                    if (++sport_cnt == 1) src_port = atoi(val);
+                } else if (strcmp(key, "dport") == 0) {
+                    if (++dport_cnt == 1) dst_port = atoi(val);
+                } else if (strcmp(key, "packets") == 0) {
+                    if (++pkt_cnt == 1) txp = strtoull(val, NULL, 10);
+                    else rxp = strtoull(val, NULL, 10);
+                } else if (strcmp(key, "bytes") == 0) {
+                    if (++byte_cnt == 1) tx = strtoull(val, NULL, 10);
+                    else rx = strtoull(val, NULL, 10);
+                }
+                *eq = '=';
+            }
+            tok = strtok(NULL, " \t\n");
+            field++;
+        }
+        flow_ingest(src_ip, dst_ip, src_port, dst_port, protocol,
+                    rx, tx, rxp, txp, now);
+    }
+    fclose(fp);
+}
+
+void conntrack_update(void)
+{
+    pthread_mutex_lock(&flow_mutex);
+    time_t now = time(NULL);
+    if (conntrack_netlink_read(now) != 0) {
+        static int warned = 0;
+        if (!warned) {
+            fprintf(stderr, "conntrack netlink unavailable, falling back to /proc\n");
+            warned = 1;
+        }
+        conntrack_proc_read(now);
+    }
+    flow_expire(now);
     pthread_mutex_unlock(&flow_mutex);
 }
 
