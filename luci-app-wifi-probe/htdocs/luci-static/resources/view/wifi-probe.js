@@ -1,7 +1,7 @@
 (function() {
     'use strict';
 
-    var DATA_URL = '/cgi-bin/luci/admin/network/wifi_probe/data';
+    var DATA_URL = L.url('admin/network/wifi_probe/data');
 
     function fmtTime(ts) {
         if (!ts) return '-';
