@@ -148,6 +148,25 @@ void wp_db_prune(struct wp_db *db, int days)
     }
 }
 
+/* 将任意字节串转义为合法的 JSON 字符串内容（不含外层引号）。 */
+static void json_escape(const char *in, char *out, size_t outsz)
+{
+    if (!outsz) return;
+    size_t o = 0;
+    const unsigned char *p = (const unsigned char *)in;
+    while (*p && (o + 7) < outsz) {
+        unsigned char c = *p++;
+        if (c == '"')      { out[o++] = '\\'; out[o++] = '"'; }
+        else if (c == '\\') { out[o++] = '\\'; out[o++] = '\\'; }
+        else if (c == '\n') { out[o++] = '\\'; out[o++] = 'n'; }
+        else if (c == '\r') { out[o++] = '\\'; out[o++] = 'r'; }
+        else if (c == '\t') { out[o++] = '\\'; out[o++] = 't'; }
+        else if (c < 0x20) { snprintf(out + o, outsz - o, "\\u%04x", c); o += 6; }
+        else out[o++] = (char)c;
+    }
+    out[o] = 0;
+}
+
 int wp_db_query_json(struct wp_db *db, const char *group, time_t since)
 {
     if (!db || !db->conn) return -1;
@@ -165,14 +184,18 @@ int wp_db_query_json(struct wp_db *db, const char *group, time_t since)
             const char *mk = (const char *)sqlite3_column_text(s, 0);
             const char *bin = (const char *)sqlite3_column_text(s, 5);
             const char *ss = (const char *)sqlite3_column_text(s, 6);
+            char bmk[64], bbin[16], bss[2048];
+            json_escape(mk ? mk : "", bmk, sizeof(bmk));
+            json_escape(bin ? bin : "", bbin, sizeof(bbin));
+            json_escape(ss ? ss : "", bss, sizeof(bss));
             printf("\n {\"mac_key\":\"%s\",\"first\":%lld,\"last\":%lld,"
                    "\"best_rssi\":%d,\"worst_rssi\":%d,\"bin\":\"%s\","
                    "\"ssids\":\"%s\",\"is_ap\":%d,\"visits\":%d}",
-                   mk ? mk : "",
+                   bmk,
                    (long long)sqlite3_column_int64(s, 1),
                    (long long)sqlite3_column_int64(s, 2),
                    sqlite3_column_int(s, 3), sqlite3_column_int(s, 4),
-                   bin ? bin : "", ss ? ss : "", sqlite3_column_int(s, 7),
+                   bbin, bss, sqlite3_column_int(s, 7),
                    sqlite3_column_int(s, 8));
         }
         sqlite3_finalize(s);
