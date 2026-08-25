@@ -66,7 +66,8 @@ static void daemon_loop(void)
             int n = wp_dev_collect_ended_visits(now, ev, 64);
             for (int i = 0; i < n; i++) {
                 wp_db_store_device(db, ev[i].mac_key, ev[i].start, ev[i].end,
-                                   0, 0, ev[i].rssi_bin, ev[i].ssid, ev[i].is_ap);
+                                   ev[i].best_rssi, ev[i].worst_rssi,
+                                   ev[i].rssi_bin, ev[i].ssid, ev[i].is_ap);
                 wp_db_store_visit(db, ev[i].mac_key, ev[i].start, ev[i].end,
                                   ev[i].ssid, ev[i].rssi_bin, ev[i].is_ap);
             }

@@ -99,6 +99,8 @@ int wp_dev_collect_ended_visits(time_t now, struct wp_visit_event *evs, int max)
                 snprintf(evs[n].mac_key, sizeof(evs[n].mac_key), "%s", d->mac_key);
                 evs[n].start = d->visit_start; evs[n].end = now;
                 evs[n].rssi_bin = d->rssi_bin; evs[n].is_ap = d->is_ap;
+                evs[n].best_rssi = d->best_rssi;
+                evs[n].worst_rssi = d->worst_rssi;
                 char *sp = d->ssids; while (*sp == ' ') sp++;
                 char *sc = strchr(sp, ',');
                 int l = sc ? (int)(sc - sp) : (int)strlen(sp);

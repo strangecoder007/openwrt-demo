@@ -77,6 +77,7 @@ struct wp_visit_event {
     time_t start, end;
     char ssid[WP_SSID_MAX];
     int rssi_bin, is_ap;
+    int best_rssi, worst_rssi;
 };
 void wp_dev_init(void);
 struct wp_device *wp_dev_observe(const uint8_t *sa, int rssi, const char *ssid, int is_ap, time_t now);
