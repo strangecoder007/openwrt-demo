@@ -1,0 +1,22 @@
+#!/bin/sh /etc/rc.common
+START=80
+USE_PROCD=1
+
+start_service() {
+	config_load wifi-probe
+	config_get_bool enabled main enabled 1
+	[ "$enabled" -eq 1 ] || return 0
+	config_get iface main interface mon0
+	config_get db_path main db_path /var/lib/wifi-probe
+	config_get gap main session_gap 300
+	config_get ret main retention_days 30
+	config_get anon main anonymize_mac 1
+	config_get filter main capture_filter all
+	procd_open_instance
+	procd_set_param command /usr/sbin/wifi-probe -d \
+		-i "$iface" -D "$db_path" -C 60 -G "$gap" -R "$ret" \
+		-A "$anon" -f "$filter"
+	procd_set_param respawn
+	procd_set_param stdout 1 stderr 1
+	procd_close_instance
+}

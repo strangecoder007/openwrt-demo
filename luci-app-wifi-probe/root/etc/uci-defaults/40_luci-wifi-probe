@@ -1,0 +1,17 @@
+#!/bin/sh
+# WiFi Probe - UCI defaults: add a monitor wifi-iface on radio0, enable service
+
+if uci -q get wireless.radio0 >/dev/null 2>&1; then
+    if [ -z "$(uci -q get wireless.probe)" ]; then
+        uci -q set wireless.probe=wifi-iface
+        uci -q set wireless.probe.device='radio0'
+        uci -q set wireless.probe.ifname='mon0'
+        uci -q set wireless.probe.mode='monitor'
+        uci -q commit wireless
+    fi
+fi
+
+uci -q set wifi-probe.main.enabled='1'
+uci -q commit wifi-probe
+rm -f /tmp/luci-indexcache
+exit 0

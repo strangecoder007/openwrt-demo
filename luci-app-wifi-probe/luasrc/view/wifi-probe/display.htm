@@ -1,0 +1,46 @@
+<%+header%>
+
+<link rel="stylesheet" href="<%=resource%>/view/wifi-probe.css" />
+<script type="text/javascript" src="<%=resource%>/view/wifi-probe.js"></script>
+
+<h2 name="content"><%:WiFi Probe%></h2>
+
+<p class="wp-desc">
+    <%:Device visits detected on the probe channel from 802.11 Probe Request / Beacon frames.%>
+</p>
+
+<div class="wp-controls">
+    <label><%:Period:%></label>
+    <select id="wp-period">
+        <option value="today"><%:Today%></option>
+        <option value="yesterday"><%:Yesterday%></option>
+        <option value="week"><%:Last 7 Days%></option>
+        <option value="month"><%:Last 30 Days%></option>
+    </select>
+    <button id="wp-refresh" class="cbi-button cbi-button-apply"><%:Refresh%></button>
+</div>
+
+<div class="wp-summary" id="wp-summary">
+    <div class="wp-kpi"><span><%:Devices%></span><strong id="wp-sum-dev">-</strong></div>
+    <div class="wp-kpi"><span><%:Near%></span><strong id="wp-sum-near">-</strong></div>
+    <div class="wp-kpi"><span><%:Mid%></span><strong id="wp-sum-mid">-</strong></div>
+    <div class="wp-kpi"><span><%:Far%></span><strong id="wp-sum-far">-</strong></div>
+</div>
+
+<div class="wp-table" id="wp-table">
+    <div class="tr table-titles">
+        <div class="th left"><%:Device%></div>
+        <div class="th right"><%:First seen%></div>
+        <div class="th right"><%:Last seen%></div>
+        <div class="th right"><%:Visits%></div>
+        <div class="th right"><%:RSSI%></div>
+        <div class="th left"><%:SSIDs%></div>
+    </div>
+    <div class="tr placeholder"><div class="td"><em class="spinning"><%:Loading device data...%></em></div></div>
+</div>
+
+<script type="text/javascript">//<![CDATA[
+    WiFiProbe.init();
+//]]></script>
+
+<%+footer%>

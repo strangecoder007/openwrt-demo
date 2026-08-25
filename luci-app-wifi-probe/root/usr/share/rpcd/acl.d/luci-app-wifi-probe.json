@@ -1,0 +1,11 @@
+{
+  "luci-app-wifi-probe": {
+    "description": "Grant UCI access for luci-app-wifi-probe",
+    "read": {
+      "uci": [ "wifi-probe", "wireless" ]
+    },
+    "write": {
+      "uci": [ "wifi-probe" ]
+    }
+  }
+}

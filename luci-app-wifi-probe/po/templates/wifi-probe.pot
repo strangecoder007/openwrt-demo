@@ -1,0 +1,29 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-app-wifi-probe\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: luasrc/controller/wifi-probe.lua
+msgid "WiFi Probe"
+msgstr ""
+
+#: luasrc/controller/wifi-probe.lua
+msgid "Overview"
+msgstr ""
+
+#: luasrc/controller/wifi-probe.lua
+msgid "Configuration"
+msgstr ""
+
+#: luasrc/view/wifi-probe/display.htm
+msgid "Devices"
+msgstr ""
+
+#: luasrc/view/wifi-probe/display.htm
+msgid "Day"
+msgstr ""
+
+#: luasrc/view/wifi-probe/display.htm
+msgid "Loading device data..."
+msgstr ""
