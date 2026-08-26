@@ -12,7 +12,7 @@ int main(void)
     if (wp_db_store_visit(db, "abc", 100, 200, "Home", WP_RSSI_MID, 0) != 0) {
         printf("visit fail\n"); return 3;
     }
-    int rc = wp_db_query_json(db, "device", 0);
+    int rc = wp_db_query_json(db, "device", 0, 0);
     wp_db_close(db);
     printf("db query rc=%d\n", rc);
     return (rc == 0) ? 0 : 4;

@@ -181,16 +181,19 @@ static void json_escape(const char *in, char *out, size_t outsz)
     out[o] = 0;
 }
 
-int wp_db_query_json(struct wp_db *db, const char *group, time_t since)
+int wp_db_query_json(struct wp_db *db, const char *group, time_t since, time_t end)
 {
     if (!db || !db->conn) return -1;
     printf("{\"group\":\"%s\",\"entries\":[", group);
-    const char *sql =
+    char sql[512];
+    snprintf(sql, sizeof(sql),
         "SELECT mac_key,first_seen,last_seen,best_rssi,worst_rssi,rssi_bin,ssids,is_ap,visit_count"
-        " FROM devices WHERE last_seen >= ? ORDER BY last_seen DESC LIMIT 500";
+        " FROM devices WHERE last_seen >= ?%s ORDER BY last_seen DESC LIMIT 500",
+        end > 0 ? " AND last_seen < ?" : "");
     sqlite3_stmt *s = NULL;
     if (sqlite3_prepare_v2(db->conn, sql, -1, &s, NULL) == SQLITE_OK) {
         sqlite3_bind_int64(s, 1, (sqlite3_int64)since);
+        if (end > 0) sqlite3_bind_int64(s, 2, (sqlite3_int64)end);
         int first = 1;
         while (sqlite3_step(s) == SQLITE_ROW) {
             if (!first) printf(",");
@@ -218,16 +221,19 @@ int wp_db_query_json(struct wp_db *db, const char *group, time_t since)
     return 0;
 }
 
-int wp_db_query_csv(struct wp_db *db, const char *group, time_t since)
+int wp_db_query_csv(struct wp_db *db, const char *group, time_t since, time_t end)
 {
     if (!db || !db->conn) return -1;
     printf("mac_key,first,last,best_rssi,worst_rssi,rssi_bin,ssids,is_ap\n");
-    const char *sql =
+    char sql[512];
+    snprintf(sql, sizeof(sql),
         "SELECT mac_key,first_seen,last_seen,best_rssi,worst_rssi,rssi_bin,ssids,is_ap,visit_count"
-        " FROM devices WHERE last_seen >= ? ORDER BY last_seen DESC LIMIT 500";
+        " FROM devices WHERE last_seen >= ?%s ORDER BY last_seen DESC LIMIT 500",
+        end > 0 ? " AND last_seen < ?" : "");
     sqlite3_stmt *s = NULL;
     if (sqlite3_prepare_v2(db->conn, sql, -1, &s, NULL) == SQLITE_OK) {
         sqlite3_bind_int64(s, 1, (sqlite3_int64)since);
+        if (end > 0) sqlite3_bind_int64(s, 2, (sqlite3_int64)end);
         while (sqlite3_step(s) == SQLITE_ROW) {
             printf("%s,%lld,%lld,%d,%d,%s,%s,%d,%d\n",
                    (const char *)sqlite3_column_text(s, 0),

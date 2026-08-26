@@ -103,8 +103,8 @@ int wp_db_store_device(struct wp_db *db, const char *mac_key, time_t first, time
 int wp_db_store_visit(struct wp_db *db, const char *mac_key, time_t start, time_t end,
                       const char *ssid, int bin, int is_ap);
 void wp_db_prune(struct wp_db *db, int days);
-int wp_db_query_json(struct wp_db *db, const char *group, time_t since);
-int wp_db_query_csv(struct wp_db *db, const char *group, time_t since);
+int wp_db_query_json(struct wp_db *db, const char *group, time_t since, time_t end);
+int wp_db_query_csv(struct wp_db *db, const char *group, time_t since, time_t end);
 
 /* ---- cli ---- */
 int wp_parse_args(int argc, char **argv, struct wp_config *cfg, int *daemon,

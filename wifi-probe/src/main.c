@@ -11,16 +11,23 @@ int g_running = 1;
 
 static void signal_handler(int sig){ (void)sig; g_running = 0; }
 
-static time_t window_secs(const char *period)
+static void window_bounds(const char *period, time_t *since, time_t *end)
 {
-    if (!period) return 86400;
-    if (strcmp(period, "today") == 0)     return (time_t)(time(NULL) % 86400);
-    if (strcmp(period, "yesterday") == 0) return (time_t)(time(NULL) % 86400 + 86400);
-    if (strcmp(period, "week") == 0)      return (time_t)(7 * 86400);
-    if (strcmp(period, "month") == 0)     return (time_t)(30 * 86400);
-    long v = atol(period);
-    if (v > 0) return (time_t)v;
-    return 86400;
+    time_t now = time(NULL);
+    struct tm tmv;
+    localtime_r(&now, &tmv);
+    tmv.tm_hour = tmv.tm_min = tmv.tm_sec = 0;
+    tmv.tm_isdst = -1;
+    time_t today0 = mktime(&tmv);   /* 系统时区的今天 00:00 */
+    *since = today0; *end = now;   /* 默认 today：今天0点 → 现在 */
+    if (!period) return;
+    if (strcmp(period, "yesterday") == 0) { *since = today0 - 86400; *end = today0; }
+    else if (strcmp(period, "week") == 0)  { *since = now - 7 * 86400; *end = 0; }
+    else if (strcmp(period, "month") == 0) { *since = now - 30 * 86400; *end = 0; }
+    else {
+        long v = atol(period);
+        if (v > 0) { *since = now - (time_t)v; *end = 0; }
+    }
 }
 
 static void usage(const char *prog)
@@ -110,9 +117,10 @@ int main(int argc, char **argv)
     } else {
         struct wp_db *db = wp_db_open(g_config.db_path);
         if (!db) { fprintf(stderr, "wifi-probe: no data at %s\n", g_config.db_path); return 1; }
-        time_t since = time(NULL) - window_secs(period);
-        if (strcmp(fmt, "csv") == 0) wp_db_query_csv(db, group, since);
-        else                         wp_db_query_json(db, group, since);
+        time_t since, end;
+        window_bounds(period, &since, &end);
+        if (strcmp(fmt, "csv") == 0) wp_db_query_csv(db, group, since, end);
+        else                         wp_db_query_json(db, group, since, end);
         wp_db_close(db);
     }
     return 0;
