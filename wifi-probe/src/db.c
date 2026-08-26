@@ -154,15 +154,29 @@ static void json_escape(const char *in, char *out, size_t outsz)
     if (!outsz) return;
     size_t o = 0;
     const unsigned char *p = (const unsigned char *)in;
-    while (*p && (o + 7) < outsz) {
-        unsigned char c = *p++;
-        if (c == '"')      { out[o++] = '\\'; out[o++] = '"'; }
-        else if (c == '\\') { out[o++] = '\\'; out[o++] = '\\'; }
-        else if (c == '\n') { out[o++] = '\\'; out[o++] = 'n'; }
-        else if (c == '\r') { out[o++] = '\\'; out[o++] = 'r'; }
-        else if (c == '\t') { out[o++] = '\\'; out[o++] = 't'; }
-        else if (c < 0x20) { snprintf(out + o, outsz - o, "\\u%04x", c); o += 6; }
-        else out[o++] = (char)c;
+    while (*p && (o + 5) < outsz) {
+        unsigned char c = *p;
+        if (c == '"')      { out[o++] = '\\'; out[o++] = '"'; p++; }
+        else if (c == '\\') { out[o++] = '\\'; out[o++] = '\\'; p++; }
+        else if (c < 0x20 || c == 0x7f) { out[o++] = '?'; p++; }   /* 含 \n \r \t 等所有控制字符 → ?，避免断行 */
+        else if (c < 0x80) { out[o++] = (char)c; p++; }
+        else {
+            /* 高字节：尝试按 UTF-8 多字节处理，非法则替换 ? */
+            int need = 0;
+            if      ((c & 0xE0) == 0xC0) need = 1;
+            else if ((c & 0xF0) == 0xE0) need = 2;
+            else if ((c & 0xF8) == 0xF0) need = 3;
+            int ok = (need > 0);
+            for (int i = 1; ok && i <= need; i++)
+                if ((p[i] & 0xC0) != 0x80) ok = 0;
+            if (ok && (o + (size_t)need + 1) < outsz) {
+                out[o++] = (char)c;
+                for (int i = 1; i <= need; i++) out[o++] = (char)p[i];
+                p += need + 1;
+            } else {
+                out[o++] = '?'; p++;
+            }
+        }
     }
     out[o] = 0;
 }
