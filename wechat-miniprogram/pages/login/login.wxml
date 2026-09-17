@@ -2,34 +2,33 @@
   <view class="hero">
     <view class="film-strip"></view>
     <view class="hero-body">
-      <view class="logo">☁️</view>
+      <view class="logo-ring">
+        <image class="logo-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23E8A656%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M17.5%2019a4.5%204.5%200%200%200%200-9h-1.8A7%207%200%201%200%204%2014.7%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
+      </view>
+      <view class="eyebrow">FAMILY ARCHIVE</view>
       <view class="title">我的云盘</view>
       <view class="subtitle">家里的照片，都存在这儿</view>
     </view>
   </view>
 
-  <view class="card">
-    <view class="field-group">
-      <text class="field-label">服务器地址</text>
-      <input class="field" placeholder="https://cy.gcaiyy.xyz:34443" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />
-    </view>
+  <view class="card form-card">
     <view class="field-group">
       <text class="field-label">账号</text>
-      <input class="field" placeholder="backup" value="{{user}}" data-field="user" bindinput="onInput" />
+      <input class="field" placeholder="backup" placeholder-class="ph" value="{{user}}" data-field="user" bindinput="onInput" />
     </view>
     <view class="field-group">
       <text class="field-label">密码</text>
-      <input class="field" placeholder="请输入密码" password value="{{pass}}" data-field="pass" bindinput="onInput" />
+      <input class="field" placeholder="请输入密码" placeholder-class="ph" password value="{{pass}}" data-field="pass" bindinput="onInput" />
     </view>
     <view class="remember-row">
       <checkbox-group bindchange="onToggleRemember">
         <label class="remember-label">
-          <checkbox value="remember" checked="{{remember}}" color="#d9822b" />记住密码
+          <checkbox value="remember" checked="{{remember}}" color="#D9822B" />记住密码
         </label>
       </checkbox-group>
     </view>
-    <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}">{{loading ? '连接中…' : '登 录'}}</button>
-    <view class="register-link" bindtap="onGoRegister">没有账号？注册一个</view>
+    <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}" hover-class="press" hover-stay-time="80">{{loading ? '连接中…' : '登 录'}}</button>
+    <view class="register-link" bindtap="onGoRegister" hover-class="link-press" hover-stay-time="80">没有账号？注册一个</view>
   </view>
   <view class="version">云盘 {{version}}</view>
 </view>

@@ -28,7 +28,9 @@ async function withRetry(fn, { retries = 3, delayMs = 800, retryRe = RETRYABLE_R
   throw lastErr;
 }
 
-function wxRequest(opts) {
+// retryOpts 可覆盖默认重试策略：登录/注册这类"必须给用户即时反馈"的请求传
+// { retries: 1 } + 短超时，避免 60s×3 的重试把按钮卡在"连接中"近 3 分钟。
+function wxRequest(opts, retryOpts) {
   return withRetry(() => new Promise((resolve, reject) => {
     wx.request({
       url: opts.url,
@@ -39,7 +41,7 @@ function wxRequest(opts) {
       success: (res) => resolve({ statusCode: res.statusCode, data: res.data }),
       fail: (err) => reject(new Error(err.errMsg || 'network error'))
     });
-  }));
+  }), retryOpts);
 }
 
 function wxUploadFile(opts) {
@@ -57,4 +59,23 @@ function wxUploadFile(opts) {
   }), { retries: 2, delayMs: 1000, retryRe: CONNECT_ONLY_RE });
 }
 
-module.exports = { wxRequest, wxUploadFile };
+// 登录/注册专用：单次尝试 + 超时封顶 10s → 最快 10 秒内把结果告诉用户。
+// 注意 dav.callUrl 会显式传 timeout: 60000，所以这里是"封顶"而不是"兜底默认"。
+// 页面列表/上传仍走默认策略（慢链路靠重试兜底，值得多等）。
+const QUICK_TIMEOUT = 10000;
+function quickRequest(opts) {
+  const t = opts.timeout || QUICK_TIMEOUT;
+  return wxRequest(Object.assign({}, opts, { timeout: Math.min(t, QUICK_TIMEOUT) }), { retries: 1 });
+}
+
+// 把底层 errMsg 归类，便于给用户可执行的提示
+//  - 'domain'：真机常见，域名没进小程序「request 合法域名」
+//  - 'connect'：连不上（无路由 / 被丢弃 / 拒绝 / 超时）
+function classifyNetError(msg) {
+  const m = String(msg || '');
+  if (/not in domain list|合法域名|域名校验/i.test(m)) return 'domain';
+  if (/unreachable|不可达|refused|拒绝|connect|network|网络|timeout|超时|fail/i.test(m)) return 'connect';
+  return 'other';
+}
+
+module.exports = { wxRequest, wxUploadFile, quickRequest, classifyNetError };

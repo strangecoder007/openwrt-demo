@@ -1,10 +1,10 @@
 const auth = require('../../utils/auth');
 const { createDav } = require('../../utils/dav');
-const { wxRequest } = require('../../utils/wxreq');
+const { quickRequest, classifyNetError } = require('../../utils/wxreq');
+const { BASE_URL } = require('../../utils/config');
 
 Page({
   data: {
-    baseUrl: '',
     adminUser: 'backup',
     adminPass: '',
     newUser: '',
@@ -14,14 +14,15 @@ Page({
   },
   onLoad() {
     const s = getApp().getSession();
-    if (s) this.setData({ baseUrl: s.baseUrl, adminUser: s.user });
+    if (s) this.setData({ adminUser: s.user });
   },
   onInput(e) {
     this.setData({ [e.currentTarget.dataset.field]: e.detail.value });
   },
   async onSubmit() {
-    const { baseUrl, adminUser, adminPass, newUser, newPass, newPass2 } = this.data;
-    if (!baseUrl || !adminUser || !adminPass || !newUser || !newPass) {
+    const { adminUser, adminPass, newUser, newPass, newPass2 } = this.data;
+    const baseUrl = BASE_URL;
+    if (!adminUser || !adminPass || !newUser || !newPass) {
       wx.showToast({ title: '请填写完整', icon: 'none' });
       return;
     }
@@ -43,17 +44,37 @@ Page({
       const dav = createDav({
         baseUrl,
         authHeader: auth.makeAuthHeader(adminUser, adminPass),
-        request: wxRequest
+        // 同登录页：快请求（单次尝试 + 10s），网络不通时立刻给反馈
+        request: quickRequest
       });
       await dav.register(newUser, newPass);
       getApp().setSession({ baseUrl, user: newUser, pass: newPass });
       wx.showToast({ title: '注册成功，已登录', icon: 'success' });
       setTimeout(() => wx.reLaunch({ url: '/pages/home/home' }), 800);
     } catch (e) {
-      const msg = e.code === 401
-        ? '管理员账号或密码错误'
-        : (e.code === 409 ? '用户名已存在' : (e.message || '注册失败'));
-      wx.showToast({ title: msg, icon: 'none' });
+      const raw = (e && e.message) || '';
+      const kind = classifyNetError(raw);
+      if (e.code === 401) {
+        wx.showToast({ title: '管理员账号或密码错误', icon: 'none' });
+      } else if (e.code === 409) {
+        wx.showToast({ title: '用户名已存在', icon: 'none' });
+      } else if (kind === 'domain') {
+        wx.showModal({
+          title: '域名未校验通过',
+          content: '真机调试请在开发者工具「详情 → 本地设置」勾选“不校验合法域名”，或把该域名加入小程序 request 合法域名。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      } else if (kind === 'connect') {
+        wx.showModal({
+          title: '连不上服务器',
+          content: '请求超时或不可达。该服务目前只有一个 IPv6 地址（无 IPv4），请确认手机当前网络支持 IPv6，或换成有 IPv6 的 Wi-Fi 重试。',
+          showCancel: false,
+          confirmText: '知道了'
+        });
+      } else {
+        wx.showToast({ title: raw || '注册失败', icon: 'none' });
+      }
     } finally {
       this.setData({ loading: false });
     }

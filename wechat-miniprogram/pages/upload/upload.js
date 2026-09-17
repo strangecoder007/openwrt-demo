@@ -18,6 +18,9 @@ Page({
           return {
             tempFilePath: t.tempFilePath,
             thumbTempFilePath: t.thumbTempFilePath || '',
+            // 列表里直接显示缩略图：chooseMedia 已给视频抽帧/图片缩略图，
+            // 图片偶尔没有就退回原图（本地文件，零成本）
+            thumb: t.thumbTempFilePath || (t.fileType === 'image' ? t.tempFilePath : ''),
             size: t.size,
             sizeLabel: mb >= 1 ? mb.toFixed(1) + 'MB' : (t.size / 1024).toFixed(0) + 'KB',
             type: t.fileType,
@@ -29,6 +32,18 @@ Page({
         this.setData({ files: this.data.files.concat(files), done: 0, percent: 0, filePercent: 0 });
       }
     });
+  },
+  // 点缩略图 → 本地预览（上传前先看一眼，避免选错）
+  previewFile(e) {
+    const idx = e.currentTarget.dataset.index;
+    const imgs = this.data.files.filter((f) => f.type === 'image');
+    const cur = this.data.files[idx];
+    if (!cur) return;
+    if (cur.type !== 'image') { wx.showToast({ title: '视频请上传后播放', icon: 'none' }); return; }
+    const urls = imgs.map((f) => f.thumbTempFilePath || f.tempFilePath).filter(Boolean);
+    const current = cur.thumbTempFilePath || cur.tempFilePath;
+    if (!urls.length) return;
+    wx.previewImage({ current, urls });
   },
   removeFile(e) {
     if (this.data.uploading) return;

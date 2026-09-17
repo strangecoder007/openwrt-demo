@@ -1,0 +1,23 @@
+# 对照页生成器本身要提交（preview/build-preview.js、preview/_before/ 基线快照），
+# 但它跑出来的一次性产物不要进版本库。
+
+# playwright-cli 的会话日志与页面快照
+.playwright-cli/
+
+# 截图产物
+preview/_shots/
+preview/_qa/
+
+# 一次性迁移/补丁脚本（含本机绝对路径与工作区记忆路径，不进版本库）。
+# 可复用的 QA 工具保留：_contrast_audit.py / _verify.py / _shoot.sh / build-preview.js
+preview/_apply_edits.py
+preview/_audit_tokens.py
+preview/_dedupe.py
+preview/_final_check*.py
+preview/_restore_videoblock.py
+preview/_rewrite_detail_mock.py
+preview/_tokenize.py
+preview/_write_memory*.py
+
+# 依赖
+node_modules/

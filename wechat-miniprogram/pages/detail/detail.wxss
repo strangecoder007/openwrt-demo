@@ -1,0 +1,277 @@
+/* ============================================================
+   文件详情 · 上下分区布局
+   未展开：媒体区铺满整屏，只有图片（点击进原生全屏、左右滑切换）
+   展开后：图片占上半屏（50%），文件信息面板占下半屏（50%）
+   两个区域的位移/高度用同一组时长与缓动，过渡时视觉上是同步的
+   ============================================================ */
+
+.detail-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--media-bg);
+  /* 显式清零：全局 .page 给了 padding:32rpx 和 min-height:100vh。
+     本页是固定视口布局，子元素全部 absolute，padding 只会造成歧义。 */
+  padding: 0;
+  min-height: 0;
+}
+
+/* ============================================================
+   重要：本页不用 vh。
+   小程序里 100vh 在部分机型上会比 webview 实际视口高出一条导航栏，
+   媒体区的图片是垂直居中的，多出来的那一截会把图片中心往下推，
+   表现为「图片偏下」。改用 absolute + 百分比，以 .detail-page
+   （fixed 四边定位，恰好等于真实视口）为基准，量出来的就是实际可见高度。
+   ============================================================ */
+
+/* —— 上半屏：媒体区 —— */
+.media-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--media-bg);
+  transition: bottom var(--t-mid) var(--ease);
+}
+/* 展开后让出下半屏；图片用 aspectFit 会在变小过程中持续重新居中 */
+.detail-page.split .media-zone { bottom: 50%; }
+
+.media-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform var(--t-fast) var(--ease);
+}
+.media-card.press { transform: scale(0.985); }
+.media-img { width: 100%; height: 100%; display: block; }
+.media-img.poster { opacity: 0.72; }
+.media-loading { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.media-err { font-size: 24rpx; color: var(--ink-3); letter-spacing: 1rpx; }
+
+/* —— 视频态：海报 + 播放按钮（铺满媒体区，不再用固定 min-height） —— */
+.media-video { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.play-ring {
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 50%;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 2rpx solid var(--scrim-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.35);
+}
+.play-ring .tri {
+  color: var(--on-scrim);
+  border-top: 16rpx solid transparent;
+  border-bottom: 16rpx solid transparent;
+  border-left: 26rpx solid currentColor;
+  margin-left: 6rpx;
+}
+.play-hint {
+  position: absolute;
+  bottom: 28rpx;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 22rpx;
+  color: var(--on-scrim);
+  opacity: 0.78;
+  letter-spacing: 2rpx;
+}
+
+/* 同组切换时轻微淡入回弹（交替类名让同一组 keyframes 能重播） */
+.media-card.anim-a, .media-card.anim-b {
+  animation: mediaIn 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes mediaIn {
+  from { opacity: 0.4; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* —— 媒体区悬浮控件：都压在纯黑媒体面上，用 --on-scrim / --scrim-soft —— */
+/* 返回按钮：自定义导航下整页铺满，top 由 JS 按胶囊位置算（对齐右上角胶囊） */
+.nav-back {
+  position: absolute;
+  left: 16rpx;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 1rpx solid var(--scrim-soft);
+  color: var(--on-scrim);
+  font-size: 44rpx;
+  line-height: 58rpx;
+  text-align: center;
+  z-index: 4;
+}
+.nav-back.press { transform: scale(0.92); }
+
+/* 当前位置：仿原生查看器，只有数字没有箭头（切图靠左右滑手势）。
+   top 由 JS 按胶囊下缘算，写在内联样式里，这里不再给 top。 */
+.pos-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 1rpx solid var(--scrim-soft);
+  border-radius: 999rpx;
+  padding: 10rpx 28rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--on-scrim);
+  letter-spacing: 2rpx;
+  font-feature-settings: "tnum";
+  z-index: 3;
+}
+
+/* 上滑唤出信息的把手：纯手势没有可发现性，必须给个看得见的入口 */
+.swipe-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(36rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 1rpx solid var(--scrim-soft);
+  border-radius: 999rpx;
+  padding: 14rpx 30rpx 12rpx;
+  z-index: 3;
+}
+.hint-chevron {
+  width: 0;
+  height: 0;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
+  border-bottom: 14rpx solid currentColor; /* 朝上的小箭头 */
+  margin-bottom: 6rpx;
+}
+.hint-text { font-size: 22rpx; color: var(--on-scrim); letter-spacing: 2rpx; }
+
+/* —— 下半屏：文件信息面板 ——
+   absolute（而非 fixed）：以 .detail-page 为基准取 50%，
+   与 .media-zone 的 bottom:50% 严格互补，不受 vh 机型差异影响。 */
+.info-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  background: var(--surface);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-2);
+  transform: translateY(100%);
+  transition: transform var(--t-mid) var(--ease);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.detail-page.split .info-sheet { transform: translateY(0); }
+
+.grabber {
+  flex-shrink: 0;
+  padding: 18rpx 0 14rpx;
+  display: flex;
+  justify-content: center;
+}
+.grabber-bar {
+  width: 72rpx;
+  height: 8rpx;
+  border-radius: 999rpx;
+  background: var(--surface-3);
+}
+
+/* scroll-view 用确定高度而不是 flex，旧 webview 上 flex 撑不开 */
+.sheet-body {
+  height: calc(100% - 88rpx);
+  padding: 4rpx 32rpx 0;
+  box-sizing: border-box;
+}
+
+.file-head { margin: 8rpx 0 24rpx; }
+.file-type { margin-bottom: 14rpx; }
+.file-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.meta-card {
+  background: var(--surface-2);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: 32rpx;
+}
+.meta-row {
+  display: flex;
+  align-items: baseline;
+  padding: 24rpx 28rpx;
+}
+.meta-row + .meta-row { border-top: 1rpx solid var(--line); }
+.meta-label { font-size: 26rpx; color: var(--ink-2); width: 160rpx; flex-shrink: 0; letter-spacing: 1rpx; }
+.meta-value { font-size: 27rpx; color: var(--ink); font-weight: 500; word-break: break-all; font-feature-settings: "tnum"; }
+.meta-path { color: var(--ink-2); font-weight: 400; font-size: 24rpx; }
+
+.action-row { padding: 0 0 calc(28rpx + env(safe-area-inset-bottom)); }
+.save-btn { width: 100%; }
+.delete-btn {
+  margin-top: 20rpx;
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: var(--danger);
+  background: var(--danger-tint);
+  border-radius: 44rpx;
+  transition: transform var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+}
+.delete-btn.press { transform: scale(0.97); opacity: 0.85; }
+
+/* —— 视频全屏层 —— */
+.video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-player { width: 100%; height: 100%; }
+.video-close {
+  position: absolute;
+  top: 40rpx;
+  right: 40rpx;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 50%;
+  background: var(--scrim);
+  color: var(--on-scrim);
+  font-size: 44rpx;
+  line-height: 68rpx;
+  text-align: center;
+  z-index: 10;
+}

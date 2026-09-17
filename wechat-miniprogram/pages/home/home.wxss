@@ -1,29 +1,95 @@
-.home-page { padding: 0 0 160rpx; }
+.home-page { padding: 0 0 200rpx; }
+
+/* —— Hero：更深的渐变 + 顶部环境光 —— */
 .hero {
-  margin: -24rpx -24rpx 0;
-  background: linear-gradient(160deg, #1c3d3a 0%, #2c4f4b 100%);
-  border-radius: 0 0 30rpx 30rpx;
-  color: #fff;
-  padding: 0 0 56rpx;
+  margin: -32rpx -32rpx 0;
+  background:
+    radial-gradient(120% 90% at 85% -10%, var(--hero-glow) 0%, transparent 55%),
+    linear-gradient(165deg, var(--hero-1) 0%, var(--brand) 48%, var(--brand-deep) 100%);
+  border-radius: 0 0 40rpx 40rpx;
+  color: var(--on-brand);
+  padding: 0 0 64rpx;
 }
-.hero-body { padding: 48rpx 36rpx 0; }
-.hero-title { font-size: 46rpx; font-weight: 700; letter-spacing: 2rpx; }
-.hero-sub { font-size: 24rpx; color: rgba(255, 255, 255, 0.72); margin-top: 12rpx; }
-.hero-rule { width: 72rpx; height: 6rpx; border-radius: 3rpx; background: #d9822b; margin-top: 24rpx; }
-.month-list { padding: 26rpx 24rpx 0; }
+.hero-body { padding: 52rpx 40rpx 0; }
+.hero-eyebrow {
+  font-size: 22rpx;
+  letter-spacing: 8rpx;
+  color: var(--on-brand-dim);
+  margin-bottom: 14rpx;
+}
+.hero-title { font-size: 52rpx; font-weight: 700; letter-spacing: 3rpx; }
+.hero-sub { font-size: 24rpx; color: var(--on-brand-soft); margin-top: 14rpx; letter-spacing: 1rpx; }
+.hero-rule {
+  width: 56rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: var(--accent);
+  margin-top: 30rpx;
+}
+
+/* —— 月份卡：图标位 + 悬浮箭头 + 按压微动效 —— */
+.month-list { padding: 32rpx 32rpx 0; }
 .month-card {
   display: flex;
   align-items: center;
-  background: #fff;
-  border: 1rpx solid #e3eae6;
-  border-radius: 14rpx;
-  padding: 26rpx 28rpx;
-  margin-bottom: 18rpx;
-  box-shadow: 0 6rpx 20rpx rgba(28, 61, 58, 0.05);
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 30rpx 26rpx 30rpx 30rpx;
+  margin-bottom: 22rpx;
+  box-shadow: var(--shadow-1);
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-mid) var(--ease);
 }
-.month-card.press { opacity: 0.85; }
-.month-accent { width: 8rpx; height: 64rpx; border-radius: 4rpx; background: #d9822b; margin-right: 22rpx; }
-.month-info { flex: 1; }
-.month-name { font-size: 38rpx; font-weight: 700; color: #1c3d3a; letter-spacing: 1rpx; }
-.month-count { font-size: 22rpx; color: #7c9a92; margin-top: 6rpx; }
-.month-arrow { font-size: 38rpx; color: #1c3d3a; opacity: 0.4; font-weight: 300; }
+.month-card.press {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-press);
+}
+.month-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 26rpx;
+  background: var(--accent-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 26rpx;
+  flex-shrink: 0;
+}
+.icon-img { width: 44rpx; height: 44rpx; }
+.month-info { flex: 1; min-width: 0; }
+.month-name {
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--brand-ink);
+  letter-spacing: 1rpx;
+  font-feature-settings: "tnum";
+}
+.month-count { font-size: 23rpx; color: var(--ink-3); margin-top: 8rpx; letter-spacing: 1rpx; }
+
+/* chevron：CSS 画的细箭头，放在发丝圆环里 */
+.month-arrow {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  border: 1rpx solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+.chev {
+  width: 14rpx;
+  height: 14rpx;
+  border-top: 3rpx solid var(--ink-2);
+  border-right: 3rpx solid var(--ink-2);
+  transform: rotate(45deg) translate(-1rpx, -1rpx);
+  border-radius: 2rpx;
+}
+
+/* —— 骨架卡 —— */
+.skeleton-card { padding: 28rpx 26rpx 28rpx 30rpx; }
+.sk-icon { width: 88rpx; height: 88rpx; border-radius: 26rpx; margin-right: 26rpx; flex-shrink: 0; }
+.sk-lines { flex: 1; }
+.sk-line { height: 30rpx; border-radius: 8rpx; margin-bottom: 16rpx; }
+.sk-line-sm { height: 22rpx; margin-bottom: 0; }

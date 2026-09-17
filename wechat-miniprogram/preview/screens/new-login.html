@@ -1,3 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>登录 · v2</title><style>* { box-sizing: border-box; }
+html, body { margin: 0; }
+view { display: block; }
+text { display: inline; }
+image { display: inline-block; }
+button { font: inherit; border: 0; background: none; margin: 0; padding: 0 14px; color: inherit; line-height: 2.55; }
+button::after { border: none; }
+input { font: inherit; outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+.chrome { position: sticky; top: 0; z-index: 50; }
+.statusbar { display: flex; justify-content: space-between; padding: 12px 22px 6px; color: #fff; font-size: 12px; font-weight: 600; }
+.navbar { display: flex; align-items: center; height: 44px; padding: 0 12px; color: #fff; }
+.nv-back { font-size: 26px; line-height: 1; padding: 0 6px; margin-top: -4px; }
+.nv-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.nv-side { width: 30px; }
 /* ============================================================
    云盘 · 设计系统 v2「墨绿档案 · Premium」
    —— 令牌化 / 大留白 / 层级字阶 / 双层柔和阴影 / 微交互 / 明暗双主题
@@ -17,7 +32,7 @@
    详见 preview/_contrast_audit.py 的实测值。
    ============================================================ */
 
-page {
+html, body {
   /* —— 品牌 —— */
   --brand: #17352E;
   --brand-deep: #10241F;
@@ -97,21 +112,21 @@ page {
   --line: rgba(24, 43, 38, 0.08);
   --line-strong: rgba(24, 43, 38, 0.14);
   --scrim: rgba(16, 36, 31, 0.55);
-  --shadow-1: 0 1rpx 2rpx rgba(24, 43, 38, 0.04), 0 10rpx 28rpx -10rpx rgba(24, 43, 38, 0.10);
-  --shadow-2: 0 2rpx 4rpx rgba(24, 43, 38, 0.05), 0 18rpx 44rpx -12rpx rgba(24, 43, 38, 0.16);
-  --shadow-press: 0 1rpx 2rpx rgba(24, 43, 38, 0.04), 0 6rpx 16rpx -8rpx rgba(24, 43, 38, 0.08);
-  --shadow-accent: 0 6rpx 16rpx rgba(193, 111, 30, 0.22), 0 18rpx 40rpx -8rpx rgba(193, 111, 30, 0.34);
+  --shadow-1: 0 0.5px 1px rgba(24, 43, 38, 0.04), 0 5px 14px -5px rgba(24, 43, 38, 0.10);
+  --shadow-2: 0 1px 2px rgba(24, 43, 38, 0.05), 0 9px 22px -6px rgba(24, 43, 38, 0.16);
+  --shadow-press: 0 0.5px 1px rgba(24, 43, 38, 0.04), 0 3px 8px -4px rgba(24, 43, 38, 0.08);
+  --shadow-accent: 0 3px 8px rgba(193, 111, 30, 0.22), 0 9px 20px -4px rgba(193, 111, 30, 0.34);
 
   /* —— 圆角 / 缓动 —— */
-  --r-lg: 32rpx;
-  --r-md: 22rpx;
-  --r-sm: 14rpx;
+  --r-lg: 16px;
+  --r-md: 11px;
+  --r-sm: 7px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --t-fast: 160ms;
   --t-mid: 260ms;
 
   background: var(--bg);
-  font-size: 28rpx;
+  font-size: 14px;
   color: var(--ink);
   line-height: 1.5;
   font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
@@ -119,7 +134,7 @@ page {
 
 /* —— 暗色主题：只覆盖令牌值，组件样式零改动 —— */
 @media (prefers-color-scheme: dark) {
-  page {
+  html, body {
     --brand: #11241F;
     --brand-deep: #0A1714;
     --brand-ink: #A9CFBF;
@@ -178,17 +193,17 @@ page {
     --line: rgba(233, 238, 236, 0.10);
     --line-strong: rgba(233, 238, 236, 0.18);
     --scrim: rgba(6, 14, 12, 0.62);
-    --shadow-1: 0 1rpx 2rpx rgba(0, 0, 0, 0.30), 0 10rpx 28rpx -10rpx rgba(0, 0, 0, 0.45);
-    --shadow-2: 0 2rpx 4rpx rgba(0, 0, 0, 0.35), 0 18rpx 44rpx -12rpx rgba(0, 0, 0, 0.55);
-    --shadow-press: 0 1rpx 2rpx rgba(0, 0, 0, 0.28), 0 6rpx 16rpx -8rpx rgba(0, 0, 0, 0.35);
-    --shadow-accent: 0 6rpx 16rpx rgba(0, 0, 0, 0.40), 0 18rpx 40rpx -8rpx rgba(0, 0, 0, 0.50);
+    --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.30), 0 5px 14px -5px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 9px 22px -6px rgba(0, 0, 0, 0.55);
+    --shadow-press: 0 0.5px 1px rgba(0, 0, 0, 0.28), 0 3px 8px -4px rgba(0, 0, 0, 0.35);
+    --shadow-accent: 0 3px 8px rgba(0, 0, 0, 0.40), 0 9px 20px -4px rgba(0, 0, 0, 0.50);
   }
 }
 
 button {
-  font-size: 28rpx;
+  font-size: 14px;
   margin: 0;
-  padding: 0 28rpx;
+  padding: 0 14px;
   line-height: 2.55;
   box-sizing: border-box;
   transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
@@ -198,16 +213,16 @@ button {
 button::after { border: none; }
 
 .page {
-  padding: 32rpx;
+  padding: 16px;
   box-sizing: border-box;
   min-height: 100vh;
 }
 
 /* 胶片齿孔带：品牌签名元素 */
 .film-strip {
-  height: 18rpx;
+  height: 9px;
   background:
-    radial-gradient(circle at 6rpx 9rpx, var(--bg) 0 2.6rpx, transparent 3.2rpx) repeat-x 0 0 / 24rpx 18rpx,
+    radial-gradient(circle at 3px 4.5px, var(--bg) 0 1.3px, transparent 1.6px) repeat-x 0 0 / 12px 9px,
     var(--brand);
 }
 
@@ -215,9 +230,9 @@ button::after { border: none; }
 .card {
   background: var(--surface);
   border-radius: var(--r-lg);
-  padding: 34rpx;
-  margin-bottom: 24rpx;
-  border: 1rpx solid var(--line);
+  padding: 17px;
+  margin-bottom: 12px;
+  border: 0.5px solid var(--line);
   box-shadow: var(--shadow-1);
 }
 
@@ -231,18 +246,18 @@ button::after { border: none; }
 }
 .btn-primary[disabled] { background: var(--disabled-bg); color: var(--disabled-fg); box-shadow: none; }
 .btn-primary.big {
-  height: 96rpx;
-  line-height: 96rpx;
-  font-size: 31rpx;
+  height: 48px;
+  line-height: 48px;
+  font-size: 15.5px;
   font-weight: 600;
-  letter-spacing: 6rpx;
-  border-radius: 48rpx;
+  letter-spacing: 3px;
+  border-radius: 24px;
 }
 
 .btn-outline {
   background: var(--surface);
   color: var(--brand-ink);
-  border: 2rpx solid var(--brand-ink);
+  border: 1px solid var(--brand-ink);
   border-radius: var(--r-md);
   font-weight: 500;
 }
@@ -252,14 +267,14 @@ button::after { border: none; }
   background: var(--surface-2);
   color: var(--ghost-fg);
   border-radius: var(--r-sm);
-  font-size: 26rpx;
+  font-size: 13px;
 }
 
 .btn-danger {
   background: var(--danger-fill);
   color: var(--on-danger);
   border-radius: var(--r-sm);
-  font-size: 26rpx;
+  font-size: 13px;
 }
 .btn-danger[disabled] { background: var(--danger-off-bg); color: var(--danger-off-fg); }
 
@@ -271,25 +286,25 @@ button.press, .btn-primary.press, .btn-outline.press, .btn-ghost.press, .btn-dan
 
 /* —— 区块标题：小字号 + 宽字距的“标签式”层级 —— */
 .section-title {
-  font-size: 24rpx;
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 4rpx;
+  letter-spacing: 2px;
   color: var(--ink-2);
-  margin: 12rpx 8rpx 26rpx;
+  margin: 6px 4px 13px;
 }
 
 /* —— 空态 —— */
-.empty { text-align: center; color: var(--ink-3); margin-top: 180rpx; }
-.empty-icon { font-size: 84rpx; margin-bottom: 24rpx; opacity: 0.55; }
-.empty-text { font-size: 26rpx; letter-spacing: 1rpx; }
+.empty { text-align: center; color: var(--ink-3); margin-top: 90px; }
+.empty-icon { font-size: 42px; margin-bottom: 12px; opacity: 0.55; }
+.empty-text { font-size: 13px; letter-spacing: 0.5px; }
 
 /* —— FAB：渐变琥珀 + 长影 + 按压缩放 —— */
 .fab {
   position: fixed;
-  right: 44rpx;
-  bottom: calc(64rpx + env(safe-area-inset-bottom));
-  width: 116rpx;
-  height: 116rpx;
+  right: 22px;
+  bottom: calc(32px + env(safe-area-inset-bottom));
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: linear-gradient(150deg, var(--accent-lite) 0%, var(--accent) 60%, var(--accent-deep) 100%);
   color: var(--on-accent);
@@ -301,7 +316,7 @@ button.press, .btn-primary.press, .btn-outline.press, .btn-ghost.press, .btn-dan
   transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .fab.press { transform: scale(0.92); box-shadow: var(--shadow-1); }
-.fab-plus { font-size: 58rpx; line-height: 1; font-weight: 300; margin-top: -6rpx; }
+.fab-plus { font-size: 29px; line-height: 1; font-weight: 300; margin-top: -3px; }
 
 /* —— 骨架屏：微光扫过 —— */
 .skeleton {
@@ -329,13 +344,180 @@ button.press, .btn-primary.press, .btn-outline.press, .btn-ghost.press, .btn-dan
 .pill {
   display: inline-flex;
   align-items: center;
-  font-size: 22rpx;
+  font-size: 11px;
   line-height: 1;
-  padding: 10rpx 20rpx;
-  border-radius: 999rpx;
+  padding: 5px 10px;
+  border-radius: 499.5px;
   background: var(--surface-2);
   color: var(--ink-2);
 }
 .pill-accent { background: var(--accent-tint); color: var(--accent-ink); }
 .pill-ok { background: var(--ok-tint); color: var(--ok); }
 .pill-danger { background: var(--danger-tint); color: var(--danger); }
+
+.login-page { padding: 0 16px 28px; min-height: 100vh; box-sizing: border-box; }
+
+/* —— Hero —— */
+.hero {
+  margin: -16px -16px 0;
+  background:
+    radial-gradient(120% 90% at 85% -10%, var(--hero-glow) 0%, transparent 55%),
+    linear-gradient(165deg, var(--hero-1) 0%, var(--brand) 48%, var(--brand-deep) 100%);
+  border-radius: 0 0 20px 20px;
+  color: var(--on-brand);
+  padding: 0 0 36px;
+}
+.hero-body { padding: 36px 20px 0; text-align: center; }
+.logo-ring {
+  width: 66px;
+  height: 66px;
+  margin: 0 auto 14px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.logo-img { width: 32px; height: 32px; }
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--on-brand-dim);
+  margin-bottom: 6px;
+}
+.title { font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
+.subtitle { font-size: 12px; color: var(--on-brand-soft); margin-top: 7px; letter-spacing: 0.5px; }
+
+/* —— 表单卡：压在 hero 上，更浮起 —— */
+.form-card { margin: -22px 0 0; padding: 20px 17px 17px; position: relative; z-index: 1; }
+.field-group { margin-bottom: 16px; }
+.field-label {
+  font-size: 11px;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 7px;
+  letter-spacing: 1px;
+}
+.field {
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+/* placeholder-class 作用在占位符自身，不要写成 .field.ph */
+.ph { color: var(--ink-3); }
+
+.remember-row {
+  display: flex;
+  align-items: center;
+  margin: -2px 0 17px;
+}
+.remember-label {
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.remember-label checkbox {
+  transform: scale(0.85);
+  margin-right: 2px;
+}
+
+.register-link {
+  text-align: center;
+  font-size: 13px;
+  color: var(--brand-ink);
+  margin-top: 15px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  transition: opacity var(--t-fast) var(--ease);
+}
+.link-press { opacity: 0.6; }
+
+.version {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 24px;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+
+
+  html[data-theme="dark"], html[data-theme="dark"] body {
+    --brand: #11241F;
+    --brand-deep: #0A1714;
+    --brand-ink: #A9CFBF;
+    --brand-tint: #1B2C27;
+    --hero-1: #17362F;
+    --hero-glow: rgba(224, 154, 75, 0.16);
+
+    --accent: #E09A4B;
+    --accent-lite: #E8A75D;
+    --accent-deep: #B06A1C;
+    --accent-ink: #EDB57A;
+    --accent-tint: #2C2216;
+    --accent-ring: rgba(224, 154, 75, 0.30);
+
+    /* 前景色：琥珀在暗色下被调亮，白字压不住（2.08:1），改用深墨字（中心 7.07:1） */
+    --on-brand: #FFFFFF;
+    /* hero 底两主题同为深墨绿，与亮色块同值（见亮色块注释） */
+    --on-brand-soft: rgba(255, 255, 255, 0.70);
+    --on-brand-dim: rgba(255, 255, 255, 0.55);
+    --on-accent: #2A1B08;
+    --on-danger: #FFFFFF;
+    /* 遮罩在两个主题下都是深色，故此前景主题无关 */
+    --on-scrim: #FFFFFF;
+    --scrim-soft: rgba(255, 255, 255, 0.14);
+
+    --ink: #E9EEEC;
+    --ink-2: #A7B7B2;
+    --ink-3: #87978F;
+
+    --bg: #0D1412;
+    --surface: #16211E;
+    --surface-2: #1D2A26;
+    --surface-3: #24322D;
+    /* 媒体区底色纯黑，两主题同值（见亮色块注释） */
+    --media-bg: #000000;
+    --glass: rgba(22, 33, 30, 0.95);
+    --ghost-fg: #C3D6CF;
+    --dot-idle: #55655F;
+
+    --ok: #6FBB8A;
+    --ok-tint: #172A20;
+    --danger: #E48170;
+    --danger-tint: #2C1A17;
+    /* 实色填充面用更深的红，白字 5.32:1（--danger 本身配白字仅 2.74:1） */
+    --danger-fill: #B8453A;
+
+    --disabled-bg: #3A3226;
+    --disabled-fg: #7D7266;
+    --outline-off-border: #2A3833;
+    --danger-off-bg: #3A2622;
+    --danger-off-fg: #8C6A63;
+
+    --skeleton-bg: #1F2B27;
+    --skeleton-sheen: rgba(255, 255, 255, 0.06);
+
+    --line: rgba(233, 238, 236, 0.10);
+    --line-strong: rgba(233, 238, 236, 0.18);
+    --scrim: rgba(6, 14, 12, 0.62);
+    --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.30), 0 5px 14px -5px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 9px 22px -6px rgba(0, 0, 0, 0.55);
+    --shadow-press: 0 0.5px 1px rgba(0, 0, 0, 0.28), 0 3px 8px -4px rgba(0, 0, 0, 0.35);
+    --shadow-accent: 0 3px 8px rgba(0, 0, 0, 0.40), 0 9px 20px -4px rgba(0, 0, 0, 0.50);
+  }
+
+/* ---- 预览占位照片(只动背景) ---- */
+.mock-photo { background: linear-gradient(150deg, #8FA98F 0%, #5E7D74 48%, #3C5A50 100%) !important; }
+.mock-photo.m2 { background: linear-gradient(160deg, #C9B08A 0%, #96805C 60%, #6B5A3E 100%) !important; }
+.mock-photo.m3 { background: linear-gradient(140deg, #7E93B8 0%, #55688C 55%, #374664 100%) !important; }
+.mock-photo.m4 { background: linear-gradient(165deg, #B98A7E 0%, #8C5F55 58%, #5F3E37 100%) !important; }
+.mock-photo.m5 { background: linear-gradient(135deg, #A3B58C 0%, #71835D 52%, #4A573C 100%) !important; }
+.mock-photo.m6 { background: linear-gradient(155deg, #6E8F9E 0%, #46667300 60%, #2E454F 100%) !important; }</style><script>(function(){try{if(/theme=dark/.test(location.search))document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script></head><body><div class="chrome" style="background:#17352E"><div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679; &#128267;</span></div><div class="navbar"><div class="nv-title">云盘</div><div class="nv-side"></div></div></div><view class="page login-page"><view class="hero"><view class="film-strip"></view><view class="hero-body"><view class="logo-ring"><image class="logo-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23E8A656%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M17.5%2019a4.5%204.5%200%200%200%200-9h-1.8A7%207%200%201%200%204%2014.7%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" /></view><view class="eyebrow">FAMILY ARCHIVE</view><view class="title">我的云盘</view><view class="subtitle">家里的照片，都存在这儿</view></view></view><view class="card form-card"><view class="field-group"><text class="field-label">账号</text><input class="field" placeholder="backup" value="backup" /></view><view class="field-group"><text class="field-label">密码</text><input class="field" placeholder="请输入密码" type="password" value="123456" /></view><view class="remember-row"><label class="remember-label"><input type="checkbox" checked style="transform:scale(.85)" /> 记住密码</label></view><button class="btn-primary big">登 录</button><view class="register-link">没有账号？注册一个</view></view><view class="version">云盘 v1.4.0</view></view></body></html>

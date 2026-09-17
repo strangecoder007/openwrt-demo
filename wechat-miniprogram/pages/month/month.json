@@ -1,5 +1,5 @@
 {
   "navigationBarTitleText": "月视图",
   "enablePullDownRefresh": true,
-  "backgroundTextStyle": "dark"
+  "backgroundTextStyle": "@bgTxtStyle"
 }

@@ -1,0 +1,722 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>文件详情 · v2</title><style>* { box-sizing: border-box; }
+html, body { margin: 0; }
+view { display: block; }
+text { display: inline; }
+image { display: inline-block; }
+button { font: inherit; border: 0; background: none; margin: 0; padding: 0 14px; color: inherit; line-height: 2.55; }
+button::after { border: none; }
+input { font: inherit; outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+.chrome { position: sticky; top: 0; z-index: 50; }
+.statusbar { display: flex; justify-content: space-between; padding: 12px 22px 6px; color: #fff; font-size: 12px; font-weight: 600; }
+.navbar { display: flex; align-items: center; height: 44px; padding: 0 12px; color: #fff; }
+.nv-back { font-size: 26px; line-height: 1; padding: 0 6px; margin-top: -4px; }
+.nv-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.nv-side { width: 30px; }
+/* ============================================================
+   云盘 · 设计系统 v2「墨绿档案 · Premium」
+   —— 令牌化 / 大留白 / 层级字阶 / 双层柔和阴影 / 微交互 / 明暗双主题
+   约定：令牌名表达“角色”而非“颜色值”，换主题只改值不改用法。
+     --brand      品牌色当作“面”用（hero 渐变、胶片带）
+     --brand-ink  品牌色当作“字/图标”用（卡片标题、描边按钮）
+     --accent-ink 琥珀当作“字”用（胶囊文字、图标）；--accent-deep 只用于渐变收尾
+
+   前景色令牌按“底色角色”拆分，一个底面对应一个前景，不可互相借用：
+     --on-brand   压在 --brand 面（深墨绿）上的前景
+     --on-accent  压在琥珀渐变 / 琥珀实色面（.btn-primary .fab .edit-fab .check.checked）上的前景
+     --on-danger  压在危险实色面（--danger-fill，.btn-danger）上的前景
+     --on-scrim   压在半透明深色遮罩（--scrim）上的前景。遮罩两个主题下都是深色，
+                  故该令牌主题无关，始终为浅色。
+   注：--on-accent 在亮色下取白、在暗色下取深墨。原因是暗色主题把琥珀整体调亮
+   （#D9822B→#E09A4B），白字压浅琥珀仅 2.08:1，必须反过来用深墨字才达标。
+   详见 preview/_contrast_audit.py 的实测值。
+   ============================================================ */
+
+html, body {
+  /* —— 品牌 —— */
+  --brand: #17352E;
+  --brand-deep: #10241F;
+  --brand-ink: #17352E;
+  --brand-tint: #E7F0EC;
+  --hero-1: #1E433A;
+  --hero-glow: rgba(217, 130, 43, 0.14);
+
+  /* —— 强调色（琥珀，克制使用） —— */
+  --accent: #D9822B;
+  --accent-lite: #E2964C;
+  --accent-deep: #A95F14;
+  --accent-ink: #A15B13;
+  /* 选中态光晕（照片格子的琥珀外圈） */
+  --accent-ring: rgba(217, 130, 43, 0.22);
+  --accent-tint: #FBF1E4;
+
+  /* —— 文字 ——
+     三级字阶（对页面底 #EEF2EF 的实测对比度，AA 需 >=4.5:1）：
+       --ink   正文/标题      13.16:1
+       --ink-2 次要标签        5.82:1
+       --ink-3 三级信息        4.60:1
+     ink-2 曾取 #5C6F6A(4.72:1)、ink-3 曾取 #6D7E78(3.79:1，未达标)。
+     为了让 ink-3 达标又不和 ink-2 撞色，两级同时压深：
+     相邻可辨亮度比 1.33 -> 1.39，比改动前更容易区分。
+  */
+  --ink: #182B26;
+  --ink-2: #4F615B;
+  --ink-3: #61706B;
+
+  /* —— 面 —— */
+  --bg: #EEF2EF;
+  --surface: #FFFFFF;
+  --surface-2: #F6F8F6;
+  --surface-3: #E2EAE6;
+  /* 详情页媒体区底色：纯黑，做成和原生「查看原图」一致的沉浸式观感。
+     detail.json 的导航栏也配成 #000000 —— 两处必须一起改，否则又是一道接缝。 */
+  --media-bg: #000000;
+  --glass: rgba(255, 255, 255, 0.95);
+  --on-brand: #FFFFFF;
+  /* hero 底在两个主题下都是深墨绿，故 hero 的三级前景令牌主题无关。
+     原先把 .eyebrow / .hero-sub 的白色透明度写死在页面样式里，
+     小标签用 0.45（压 hero 最浅端仅 3.58:1）不达标，统一提到 0.55。 */
+  --on-brand-soft: rgba(255, 255, 255, 0.70);
+  --on-brand-dim: rgba(255, 255, 255, 0.55);
+  --on-accent: #FFFFFF;
+  --on-scrim: #FFFFFF;
+  /* 媒体区（--media-bg，两主题都是纯黑）上悬浮控件用的浅色薄纱底/描边。
+     与 --on-scrim 成对出现：--on-scrim 当字，--scrim-soft 当薄纱面。主题无关。 */
+  --scrim-soft: rgba(255, 255, 255, 0.14);
+  --ghost-fg: #3B5A52;
+  --dot-idle: #B6C4BF;
+
+  /* —— 语义色 —— */
+  --ok: #35784C;
+  --ok-tint: #E6F2EA;
+  /* --danger：危险色当作“字/图标/描边”用（错误文字、失败态标签） */
+  --danger: #B94132;
+  --danger-tint: #F9E9E6;
+  /* --danger-fill：危险色当作“实色填充面”用；暗色下必须比 --danger 更深
+     （暗色的 --danger 是提亮后的浅鲑红，只适合当字，不能承白字） */
+  --danger-fill: #B94132;
+  --on-danger: #FFFFFF;
+
+  /* —— 禁用态 —— */
+  --disabled-bg: #E7CDA9;
+  --disabled-fg: #FFF9F0;
+  --outline-off-border: #CFDCD6;
+  --danger-off-bg: #E5B3AB;
+  --danger-off-fg: #FFF6F4;
+
+  /* —— 骨架屏 —— */
+  --skeleton-bg: #E7ECE8;
+  --skeleton-sheen: rgba(255, 255, 255, 0.65);
+
+  /* —— 线与影 —— */
+  --line: rgba(24, 43, 38, 0.08);
+  --line-strong: rgba(24, 43, 38, 0.14);
+  --scrim: rgba(16, 36, 31, 0.55);
+  --shadow-1: 0 0.5px 1px rgba(24, 43, 38, 0.04), 0 5px 14px -5px rgba(24, 43, 38, 0.10);
+  --shadow-2: 0 1px 2px rgba(24, 43, 38, 0.05), 0 9px 22px -6px rgba(24, 43, 38, 0.16);
+  --shadow-press: 0 0.5px 1px rgba(24, 43, 38, 0.04), 0 3px 8px -4px rgba(24, 43, 38, 0.08);
+  --shadow-accent: 0 3px 8px rgba(193, 111, 30, 0.22), 0 9px 20px -4px rgba(193, 111, 30, 0.34);
+
+  /* —— 圆角 / 缓动 —— */
+  --r-lg: 16px;
+  --r-md: 11px;
+  --r-sm: 7px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --t-fast: 160ms;
+  --t-mid: 260ms;
+
+  background: var(--bg);
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif;
+}
+
+/* —— 暗色主题：只覆盖令牌值，组件样式零改动 —— */
+@media (prefers-color-scheme: dark) {
+  html, body {
+    --brand: #11241F;
+    --brand-deep: #0A1714;
+    --brand-ink: #A9CFBF;
+    --brand-tint: #1B2C27;
+    --hero-1: #17362F;
+    --hero-glow: rgba(224, 154, 75, 0.16);
+
+    --accent: #E09A4B;
+    --accent-lite: #E8A75D;
+    --accent-deep: #B06A1C;
+    --accent-ink: #EDB57A;
+    --accent-tint: #2C2216;
+    --accent-ring: rgba(224, 154, 75, 0.30);
+
+    /* 前景色：琥珀在暗色下被调亮，白字压不住（2.08:1），改用深墨字（中心 7.07:1） */
+    --on-brand: #FFFFFF;
+    /* hero 底两主题同为深墨绿，与亮色块同值（见亮色块注释） */
+    --on-brand-soft: rgba(255, 255, 255, 0.70);
+    --on-brand-dim: rgba(255, 255, 255, 0.55);
+    --on-accent: #2A1B08;
+    --on-danger: #FFFFFF;
+    /* 遮罩在两个主题下都是深色，故此前景主题无关 */
+    --on-scrim: #FFFFFF;
+    --scrim-soft: rgba(255, 255, 255, 0.14);
+
+    --ink: #E9EEEC;
+    --ink-2: #A7B7B2;
+    --ink-3: #87978F;
+
+    --bg: #0D1412;
+    --surface: #16211E;
+    --surface-2: #1D2A26;
+    --surface-3: #24322D;
+    /* 媒体区底色纯黑，两主题同值（见亮色块注释） */
+    --media-bg: #000000;
+    --glass: rgba(22, 33, 30, 0.95);
+    --ghost-fg: #C3D6CF;
+    --dot-idle: #55655F;
+
+    --ok: #6FBB8A;
+    --ok-tint: #172A20;
+    --danger: #E48170;
+    --danger-tint: #2C1A17;
+    /* 实色填充面用更深的红，白字 5.32:1（--danger 本身配白字仅 2.74:1） */
+    --danger-fill: #B8453A;
+
+    --disabled-bg: #3A3226;
+    --disabled-fg: #7D7266;
+    --outline-off-border: #2A3833;
+    --danger-off-bg: #3A2622;
+    --danger-off-fg: #8C6A63;
+
+    --skeleton-bg: #1F2B27;
+    --skeleton-sheen: rgba(255, 255, 255, 0.06);
+
+    --line: rgba(233, 238, 236, 0.10);
+    --line-strong: rgba(233, 238, 236, 0.18);
+    --scrim: rgba(6, 14, 12, 0.62);
+    --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.30), 0 5px 14px -5px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 9px 22px -6px rgba(0, 0, 0, 0.55);
+    --shadow-press: 0 0.5px 1px rgba(0, 0, 0, 0.28), 0 3px 8px -4px rgba(0, 0, 0, 0.35);
+    --shadow-accent: 0 3px 8px rgba(0, 0, 0, 0.40), 0 9px 20px -4px rgba(0, 0, 0, 0.50);
+  }
+}
+
+button {
+  font-size: 14px;
+  margin: 0;
+  padding: 0 14px;
+  line-height: 2.55;
+  box-sizing: border-box;
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease),
+    opacity var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+
+button::after { border: none; }
+
+.page {
+  padding: 16px;
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+/* 胶片齿孔带：品牌签名元素 */
+.film-strip {
+  height: 9px;
+  background:
+    radial-gradient(circle at 3px 4.5px, var(--bg) 0 1.3px, transparent 1.6px) repeat-x 0 0 / 12px 9px,
+    var(--brand);
+}
+
+/* —— 卡片：大圆角 + 发丝线 + 双层影 —— */
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 17px;
+  margin-bottom: 12px;
+  border: 0.5px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+
+/* —— 按钮 —— */
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-lite) 0%, var(--accent) 55%, var(--accent-deep) 100%);
+  color: var(--on-accent);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-accent);
+  font-weight: 600;
+}
+.btn-primary[disabled] { background: var(--disabled-bg); color: var(--disabled-fg); box-shadow: none; }
+.btn-primary.big {
+  height: 48px;
+  line-height: 48px;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  border-radius: 24px;
+}
+
+.btn-outline {
+  background: var(--surface);
+  color: var(--brand-ink);
+  border: 1px solid var(--brand-ink);
+  border-radius: var(--r-md);
+  font-weight: 500;
+}
+.btn-outline[disabled] { color: var(--ink-3); border-color: var(--outline-off-border); background: var(--surface-2); }
+
+.btn-ghost {
+  background: var(--surface-2);
+  color: var(--ghost-fg);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+
+.btn-danger {
+  background: var(--danger-fill);
+  color: var(--on-danger);
+  border-radius: var(--r-sm);
+  font-size: 13px;
+}
+.btn-danger[disabled] { background: var(--danger-off-bg); color: var(--danger-off-fg); }
+
+/* 按压反馈：所有按钮统一缩放微动效 */
+button.press, .btn-primary.press, .btn-outline.press, .btn-ghost.press, .btn-danger.press {
+  transform: scale(0.96);
+  opacity: 0.92;
+}
+
+/* —— 区块标题：小字号 + 宽字距的“标签式”层级 —— */
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--ink-2);
+  margin: 6px 4px 13px;
+}
+
+/* —— 空态 —— */
+.empty { text-align: center; color: var(--ink-3); margin-top: 90px; }
+.empty-icon { font-size: 42px; margin-bottom: 12px; opacity: 0.55; }
+.empty-text { font-size: 13px; letter-spacing: 0.5px; }
+
+/* —— FAB：渐变琥珀 + 长影 + 按压缩放 —— */
+.fab {
+  position: fixed;
+  right: 22px;
+  bottom: calc(32px + env(safe-area-inset-bottom));
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--accent-lite) 0%, var(--accent) 60%, var(--accent-deep) 100%);
+  color: var(--on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-accent);
+  z-index: 10;
+  transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.fab.press { transform: scale(0.92); box-shadow: var(--shadow-1); }
+.fab-plus { font-size: 29px; line-height: 1; font-weight: 300; margin-top: -3px; }
+
+/* —— 骨架屏：微光扫过 —— */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--skeleton-bg);
+}
+.skeleton::after {
+  content: '';
+  /* 不用 inset 简写：部分机型内核不支持会整条失效 */
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent 0%, var(--skeleton-sheen) 50%, transparent 100%);
+  animation: shimmer 1.4s infinite;
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* —— 徽标 / 胶囊 —— */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  line-height: 1;
+  padding: 5px 10px;
+  border-radius: 499.5px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.pill-accent { background: var(--accent-tint); color: var(--accent-ink); }
+.pill-ok { background: var(--ok-tint); color: var(--ok); }
+.pill-danger { background: var(--danger-tint); color: var(--danger); }
+
+/* ============================================================
+   文件详情 · 上下分区布局
+   未展开：媒体区铺满整屏，只有图片（点击进原生全屏、左右滑切换）
+   展开后：图片占上半屏（50%），文件信息面板占下半屏（50%）
+   两个区域的位移/高度用同一组时长与缓动，过渡时视觉上是同步的
+   ============================================================ */
+
+.detail-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--media-bg);
+  /* 显式清零：全局 .page 给了 padding:16px 和 min-height:100vh。
+     本页是固定视口布局，子元素全部 absolute，padding 只会造成歧义。 */
+  padding: 0;
+  min-height: 0;
+}
+
+/* ============================================================
+   重要：本页不用 vh。
+   小程序里 100vh 在部分机型上会比 webview 实际视口高出一条导航栏，
+   媒体区的图片是垂直居中的，多出来的那一截会把图片中心往下推，
+   表现为「图片偏下」。改用 absolute + 百分比，以 .detail-page
+   （fixed 四边定位，恰好等于真实视口）为基准，量出来的就是实际可见高度。
+   ============================================================ */
+
+/* —— 上半屏：媒体区 —— */
+.media-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--media-bg);
+  transition: bottom var(--t-mid) var(--ease);
+}
+/* 展开后让出下半屏；图片用 aspectFit 会在变小过程中持续重新居中 */
+.detail-page.split .media-zone { bottom: 50%; }
+
+.media-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: transform var(--t-fast) var(--ease);
+}
+.media-card.press { transform: scale(0.985); }
+.media-img { width: 100%; height: 100%; display: block; }
+.media-img.poster { opacity: 0.72; }
+.media-loading { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.media-err { font-size: 12px; color: var(--ink-3); letter-spacing: 0.5px; }
+
+/* —— 视频态：海报 + 播放按钮（铺满媒体区，不再用固定 min-height） —— */
+.media-video { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.play-ring {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--scrim-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.play-ring .tri {
+  color: var(--on-scrim);
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 13px solid currentColor;
+  margin-left: 3px;
+}
+.play-hint {
+  position: absolute;
+  bottom: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--on-scrim);
+  opacity: 0.78;
+  letter-spacing: 1px;
+}
+
+/* 同组切换时轻微淡入回弹（交替类名让同一组 keyframes 能重播） */
+.media-card.anim-a, .media-card.anim-b {
+  animation: mediaIn 280ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes mediaIn {
+  from { opacity: 0.4; transform: scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* —— 媒体区悬浮控件：都压在纯黑媒体面上，用 --on-scrim / --scrim-soft —— */
+/* 返回按钮：自定义导航下整页铺满，top 由 JS 按胶囊位置算（对齐右上角胶囊） */
+.nav-back {
+  position: absolute;
+  left: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 0.5px solid var(--scrim-soft);
+  color: var(--on-scrim);
+  font-size: 22px;
+  line-height: 29px;
+  text-align: center;
+  z-index: 4;
+}
+.nav-back.press { transform: scale(0.92); }
+
+/* 当前位置：仿原生查看器，只有数字没有箭头（切图靠左右滑手势）。
+   top 由 JS 按胶囊下缘算，写在内联样式里，这里不再给 top。 */
+.pos-pill {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 0.5px solid var(--scrim-soft);
+  border-radius: 499.5px;
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--on-scrim);
+  letter-spacing: 1px;
+  font-feature-settings: "tnum";
+  z-index: 3;
+}
+
+/* 上滑唤出信息的把手：纯手势没有可发现性，必须给个看得见的入口 */
+.swipe-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  border: 0.5px solid var(--scrim-soft);
+  border-radius: 499.5px;
+  padding: 7px 15px 6px;
+  z-index: 3;
+}
+.hint-chevron {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 7px solid currentColor; /* 朝上的小箭头 */
+  margin-bottom: 3px;
+}
+.hint-text { font-size: 11px; color: var(--on-scrim); letter-spacing: 1px; }
+
+/* —— 下半屏：文件信息面板 ——
+   absolute（而非 fixed）：以 .detail-page 为基准取 50%，
+   与 .media-zone 的 bottom:50% 严格互补，不受 vh 机型差异影响。 */
+.info-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 50%;
+  background: var(--surface);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-2);
+  transform: translateY(100%);
+  transition: transform var(--t-mid) var(--ease);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.detail-page.split .info-sheet { transform: translateY(0); }
+
+.grabber {
+  flex-shrink: 0;
+  padding: 9px 0 7px;
+  display: flex;
+  justify-content: center;
+}
+.grabber-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 499.5px;
+  background: var(--surface-3);
+}
+
+/* scroll-view 用确定高度而不是 flex，旧 webview 上 flex 撑不开 */
+.sheet-body {
+  height: calc(100% - 44px);
+  padding: 2px 16px 0;
+  box-sizing: border-box;
+}
+
+.file-head { margin: 4px 0 12px; }
+.file-type { margin-bottom: 7px; }
+.file-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 0.25px;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.meta-card {
+  background: var(--surface-2);
+  border: 0.5px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.meta-row {
+  display: flex;
+  align-items: baseline;
+  padding: 12px 14px;
+}
+.meta-row + .meta-row { border-top: 0.5px solid var(--line); }
+.meta-label { font-size: 13px; color: var(--ink-2); width: 80px; flex-shrink: 0; letter-spacing: 0.5px; }
+.meta-value { font-size: 13.5px; color: var(--ink); font-weight: 500; word-break: break-all; font-feature-settings: "tnum"; }
+.meta-path { color: var(--ink-2); font-weight: 400; font-size: 12px; }
+
+.action-row { padding: 0 0 calc(14px + env(safe-area-inset-bottom)); }
+.save-btn { width: 100%; }
+.delete-btn {
+  margin-top: 10px;
+  width: 100%;
+  height: 44px;
+  line-height: 44px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--danger);
+  background: var(--danger-tint);
+  border-radius: 22px;
+  transition: transform var(--t-fast) var(--ease), opacity var(--t-fast) var(--ease);
+}
+.delete-btn.press { transform: scale(0.97); opacity: 0.85; }
+
+/* —— 视频全屏层 —— */
+.video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000;
+  z-index: 99;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.video-player { width: 100%; height: 100%; }
+.video-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--scrim);
+  color: var(--on-scrim);
+  font-size: 22px;
+  line-height: 34px;
+  text-align: center;
+  z-index: 10;
+}
+
+/* 预览专用覆写：真机这页是 navigationStyle:custom，整页铺满；
+   预览 iframe 本身就是整块屏幕，所以 .pv-detail 直接铺满即可。 */
+.pv-detail { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+/* 全局 .page 的 min-height:100vh 会把 .detail-page 撑出 .pv-detail，
+   导致媒体区比可视区高出一截、「上滑查看信息」把手被顶出屏幕外 */
+.pv-detail .detail-page { position: absolute; top: 0; bottom: 0; min-height: 0; }
+/* 预览里的 scroll-view 只是未知元素，不会真的滚动；给它真实滚动行为 */
+.pv-detail scroll-view { display: block; overflow-y: auto; }
+/* 预览浏览器里 env(safe-area-inset-bottom) 解析失败会让整条 calc 失效，
+   操作区会贴到滚动区最底；给个保底间距 */
+.pv-detail .action-row { padding-bottom: 14px; }
+/* mock 照片默认铺满整屏，看不出媒体区底色；真机照片多为横图，
+   aspectFit 居中后上下会露底，这里模拟成 62% 高的横图 */
+.pv-detail .media-img { height: 62%; }
+
+  html[data-theme="dark"], html[data-theme="dark"] body {
+    --brand: #11241F;
+    --brand-deep: #0A1714;
+    --brand-ink: #A9CFBF;
+    --brand-tint: #1B2C27;
+    --hero-1: #17362F;
+    --hero-glow: rgba(224, 154, 75, 0.16);
+
+    --accent: #E09A4B;
+    --accent-lite: #E8A75D;
+    --accent-deep: #B06A1C;
+    --accent-ink: #EDB57A;
+    --accent-tint: #2C2216;
+    --accent-ring: rgba(224, 154, 75, 0.30);
+
+    /* 前景色：琥珀在暗色下被调亮，白字压不住（2.08:1），改用深墨字（中心 7.07:1） */
+    --on-brand: #FFFFFF;
+    /* hero 底两主题同为深墨绿，与亮色块同值（见亮色块注释） */
+    --on-brand-soft: rgba(255, 255, 255, 0.70);
+    --on-brand-dim: rgba(255, 255, 255, 0.55);
+    --on-accent: #2A1B08;
+    --on-danger: #FFFFFF;
+    /* 遮罩在两个主题下都是深色，故此前景主题无关 */
+    --on-scrim: #FFFFFF;
+    --scrim-soft: rgba(255, 255, 255, 0.14);
+
+    --ink: #E9EEEC;
+    --ink-2: #A7B7B2;
+    --ink-3: #87978F;
+
+    --bg: #0D1412;
+    --surface: #16211E;
+    --surface-2: #1D2A26;
+    --surface-3: #24322D;
+    /* 媒体区底色纯黑，两主题同值（见亮色块注释） */
+    --media-bg: #000000;
+    --glass: rgba(22, 33, 30, 0.95);
+    --ghost-fg: #C3D6CF;
+    --dot-idle: #55655F;
+
+    --ok: #6FBB8A;
+    --ok-tint: #172A20;
+    --danger: #E48170;
+    --danger-tint: #2C1A17;
+    /* 实色填充面用更深的红，白字 5.32:1（--danger 本身配白字仅 2.74:1） */
+    --danger-fill: #B8453A;
+
+    --disabled-bg: #3A3226;
+    --disabled-fg: #7D7266;
+    --outline-off-border: #2A3833;
+    --danger-off-bg: #3A2622;
+    --danger-off-fg: #8C6A63;
+
+    --skeleton-bg: #1F2B27;
+    --skeleton-sheen: rgba(255, 255, 255, 0.06);
+
+    --line: rgba(233, 238, 236, 0.10);
+    --line-strong: rgba(233, 238, 236, 0.18);
+    --scrim: rgba(6, 14, 12, 0.62);
+    --shadow-1: 0 0.5px 1px rgba(0, 0, 0, 0.30), 0 5px 14px -5px rgba(0, 0, 0, 0.45);
+    --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.35), 0 9px 22px -6px rgba(0, 0, 0, 0.55);
+    --shadow-press: 0 0.5px 1px rgba(0, 0, 0, 0.28), 0 3px 8px -4px rgba(0, 0, 0, 0.35);
+    --shadow-accent: 0 3px 8px rgba(0, 0, 0, 0.40), 0 9px 20px -4px rgba(0, 0, 0, 0.50);
+  }
+
+/* ---- 预览占位照片(只动背景) ---- */
+.mock-photo { background: linear-gradient(150deg, #8FA98F 0%, #5E7D74 48%, #3C5A50 100%) !important; }
+.mock-photo.m2 { background: linear-gradient(160deg, #C9B08A 0%, #96805C 60%, #6B5A3E 100%) !important; }
+.mock-photo.m3 { background: linear-gradient(140deg, #7E93B8 0%, #55688C 55%, #374664 100%) !important; }
+.mock-photo.m4 { background: linear-gradient(165deg, #B98A7E 0%, #8C5F55 58%, #5F3E37 100%) !important; }
+.mock-photo.m5 { background: linear-gradient(135deg, #A3B58C 0%, #71835D 52%, #4A573C 100%) !important; }
+.mock-photo.m6 { background: linear-gradient(155deg, #6E8F9E 0%, #46667300 60%, #2E454F 100%) !important; }</style><script>(function(){try{if(/theme=dark/.test(location.search))document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script></head><body><div class="pv-detail"><view class="page detail-page split"><view class="media-zone"><view class="media-card anim-a"><view class="media-img mock-photo m2"></view></view><view class="nav-back" style="top:14px">&#8249;</view><view class="pos-pill" style="top:58px">3 / 12</view></view><view class="info-sheet"><view class="grabber"><view class="grabber-bar"></view></view><scroll-view scroll-y class="sheet-body"><view class="file-head"><view class="file-type pill">照片</view><view class="file-title">IMG_20260915_102340.jpg</view></view><view class="meta-card"><view class="meta-row"><text class="meta-label">大小</text><text class="meta-value">3.8 MB</text></view><view class="meta-row"><text class="meta-label">修改时间</text><text class="meta-value">2026-09-15 10:24</text></view><view class="meta-row"><text class="meta-label">存储路径</text><text class="meta-value meta-path">/dav/backup/android/DCIM/2026-09/IMG_20260915_102340.jpg</text></view></view><view class="action-row"><button class="btn-primary big save-btn">保存到相册</button><button class="delete-btn">删除文件</button></view></scroll-view></view></view></div></body></html>

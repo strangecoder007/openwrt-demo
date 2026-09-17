@@ -35,12 +35,7 @@ Page({
     this.setData({ dirPath, monthName });
   },
   onShow() {
-    // wx.previewImage 关闭会触发本页 onShow（原生预览页导致 onHide/onShow 各一次），
-    // 预览返回不需要重载；用 _fromPreview 标志跳过，真正返回（上传/删除后）仍刷新
-    if (this._fromPreview) {
-      this._fromPreview = false;
-      return;
-    }
+    // 从详情页返回（可能删除过文件）时重载；缩略图/状态沿用内存里的旧值，不闪屏
     this.loadFiles();
   },
   async loadFiles() {
@@ -197,7 +192,14 @@ Page({
     const f = this.findFile(path);
     if (!f) return;
     if (f.type === 'image') {
-      this.previewDay(f);
+      // 图片 → 文件详情页（大图预览 / 保存 / 删除都在那里）
+      // 同组（同一天）图片列表通过 globalData 传递：路径很长，塞 URL 会超长，
+      // 而且详情页里还能直接复用 month 已经加载好的缩略图，切换零等待
+      const day = this.data.days.find((d) => d.files.some((x) => x.path === path));
+      const images = day ? day.files.filter((x) => x.type === 'image') : [f];
+      const idx = images.findIndex((x) => x.path === path);
+      getApp().globalData.detailQueue = { list: images, index: idx < 0 ? 0 : idx, dayLabel: day ? day.label : '' };
+      wx.navigateTo({ url: '/pages/detail/detail?info=' + encodeURIComponent(JSON.stringify(f)) });
       return;
     }
     wx.showLoading({ title: '下载中' });
@@ -222,43 +224,6 @@ Page({
     }).catch(() => {
       wx.hideLoading();
       wx.showToast({ title: '下载失败', icon: 'none' });
-    });
-  },
-  // 点图片 → 下载“当天”所有 1280px 预览图（并发 3，无预览图的老图首次
-  // 下载原图压缩回传）→ wx.previewImage 可左右滑动
-  async previewDay(f) {
-    const day = this.data.days.find((d) => d.files.some((x) => x.path === f.path));
-    if (!day) return;
-    const images = day.files.filter((x) => x.type === 'image');
-    const idx = images.indexOf(f);
-    const urls = new Array(images.length);
-    let done = 0;
-    const dav = getDav();
-    wx.showLoading({ title: '加载预览 0/' + images.length });
-    let i = 0;
-    const CONC = 3;
-    const worker = async () => {
-      while (i < images.length) {
-        const cur = i++;
-        try {
-          const local = await this.fetchPreview(images[cur], dav);
-          if (local) urls[cur] = local;
-        } catch (e) { console.warn('[month] preview fail', images[cur].path, e); /* 单张失败跳过，其余仍可预览 */ }
-        done += 1;
-        wx.showLoading({ title: '加载预览 ' + done + '/' + images.length });
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(CONC, images.length) }, () => worker()));
-    wx.hideLoading();
-    const ok = urls.filter(Boolean);
-    if (!ok.length) { wx.showToast({ title: '下载失败', icon: 'none' }); return; }
-    // 预览页是原生页面，关闭时会触发本页 onShow；置标志让 onShow 跳过重载。
-    // fail（预览没打开）时立刻清掉，避免标志残留吞掉下一次正常刷新。
-    this._fromPreview = true;
-    wx.previewImage({
-      current: urls[idx] || urls[0],
-      urls: ok,
-      fail: () => { this._fromPreview = false; }
     });
   },
   async onDeleteSelected() {

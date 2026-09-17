@@ -1,0 +1,73 @@
+<view class="page detail-page {{infoOpen ? 'split' : ''}}" wx:if="{{file}}">
+
+  <!-- 上半屏：媒体区。未展开时铺满整屏，信息面板唤出后让出下半屏。
+       手势：左右滑切上一张/下一张；上滑唤出信息；信息展开时下滑收起。 -->
+  <view class="media-zone">
+    <view class="media-card {{animClass}}"
+          bindtouchstart="onTouchStart"
+          bindtouchmove="onTouchMove"
+          bindtouchend="onTouchEnd"
+          bindtap="{{file.type === 'video' ? 'onTapVideo' : 'onTapImage'}}"
+          hover-class="press" hover-stay-time="80">
+      <image wx:if="{{file.type === 'image' && img}}" src="{{img}}" mode="aspectFit" class="media-img" />
+      <view wx:elif="{{file.type === 'video'}}" class="media-video {{file.thumb ? 'has-poster' : ''}}">
+        <image wx:if="{{file.thumb}}" src="{{file.thumb}}" mode="aspectFill" class="media-img poster" />
+        <view class="play-ring"><view class="tri"></view></view>
+        <view class="play-hint">点击播放</view>
+      </view>
+      <view wx:else class="media-loading {{loading ? 'skeleton' : ''}}">
+        <text wx:if="{{!loading}}" class="media-err">预览加载失败</text>
+      </view>
+    </view>
+
+    <!-- 自定义导航：返回按钮与右上角胶囊垂直对齐（整页铺满含状态栏） -->
+    <view class="nav-back" style="top:{{navBtnTop}}px" catchtap="onBack" hover-class="press" hover-stay-time="80">‹</view>
+
+    <!-- 顶部悬浮：当前位置（仿原生查看器，只有数字没有箭头；左右滑手势切图） -->
+    <view class="pos-pill" wx:if="{{total > 1}}" style="top:{{contentTop}}px">{{posLabel}}</view>
+
+    <!-- 底部悬浮：上滑唤出信息的入口（纯手势没有可发现性，必须给个看得见的把手） -->
+    <view class="swipe-hint" wx:if="{{!infoOpen}}" bindtap="toggleInfo">
+      <view class="hint-chevron"></view>
+      <text class="hint-text">上滑查看信息</text>
+    </view>
+  </view>
+
+  <!-- 下半屏：文件信息面板，上滑唤出 -->
+  <view class="info-sheet">
+    <view class="grabber" bindtap="toggleInfo">
+      <view class="grabber-bar"></view>
+    </view>
+    <scroll-view scroll-y class="sheet-body">
+      <view class="file-head">
+        <view class="file-type {{file.type === 'video' ? 'pill-accent' : 'pill'}}">{{file.type === 'video' ? '视频' : '照片'}}</view>
+        <view class="file-title">{{file.name}}</view>
+      </view>
+
+      <view class="meta-card">
+        <view class="meta-row">
+          <text class="meta-label">大小</text>
+          <text class="meta-value">{{file.sizeLabel}}</text>
+        </view>
+        <view class="meta-row">
+          <text class="meta-label">修改时间</text>
+          <text class="meta-value">{{file.dateLabel}}</text>
+        </view>
+        <view class="meta-row">
+          <text class="meta-label">存储路径</text>
+          <text class="meta-value meta-path">{{file.path}}</text>
+        </view>
+      </view>
+
+      <view class="action-row">
+        <button class="btn-primary big save-btn" bindtap="onSave" disabled="{{saving}}" hover-class="press" hover-stay-time="80">{{saving ? '保存中…' : '保存到相册'}}</button>
+        <button class="delete-btn" bindtap="onDelete" hover-class="press" hover-stay-time="80">删除文件</button>
+      </view>
+    </scroll-view>
+  </view>
+</view>
+
+<view wx:if="{{playing}}" class="video-overlay" bindtap="closeVideo">
+  <video src="{{videoSrc}}" controls class="video-player" catchtap="noop" />
+  <view class="video-close" catchtap="closeVideo">×</view>
+</view>

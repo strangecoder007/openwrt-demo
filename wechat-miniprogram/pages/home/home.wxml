@@ -2,9 +2,20 @@
   <view class="hero">
     <view class="film-strip"></view>
     <view class="hero-body">
+      <view class="hero-eyebrow">FAMILY ARCHIVE</view>
       <view class="hero-title">我的云盘</view>
-      <view class="hero-sub">{{loading ? '加载中…' : (months.length ? months.length + ' 个月份备份' : 'DCIM 照片备份')}}</view>
+      <view class="hero-sub">{{loading ? '正在整理你的档案…' : (months.length ? months.length + ' 个月份 · 照片与影像' : 'DCIM 照片备份')}}</view>
       <view class="hero-rule"></view>
+    </view>
+  </view>
+
+  <view wx:if="{{loading && !months.length}}" class="month-list">
+    <view class="month-card skeleton-card" wx:for="{{[1, 2, 3]}}" wx:key="*this">
+      <view class="sk-icon skeleton"></view>
+      <view class="sk-lines">
+        <view class="sk-line skeleton" style="width: 42%"></view>
+        <view class="sk-line sk-line-sm skeleton" style="width: 30%"></view>
+      </view>
     </view>
   </view>
 
@@ -14,17 +25,21 @@
   </view>
 
   <view class="month-list">
-    <view class="month-card" wx:for="{{months}}" wx:key="name" data-path="{{item.path}}" bindtap="onTapMonth" hover-class="press">
-      <view class="month-accent"></view>
+    <view class="month-card" wx:for="{{months}}" wx:key="name" data-path="{{item.path}}" bindtap="onTapMonth" hover-class="press" hover-stay-time="80">
+      <view class="month-icon">
+        <image class="icon-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23D9822B%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M3%207a2%202%200%200%201%202-2h4l2%202h8a2%202%200%200%201%202%202v9a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2z%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
+      </view>
       <view class="month-info">
         <view class="month-name">{{item.name}}</view>
         <view class="month-count">{{item.count}} 个文件</view>
       </view>
-      <view class="month-arrow">›</view>
+      <view class="month-arrow">
+        <view class="chev"></view>
+      </view>
     </view>
   </view>
 
-  <view class="fab" bindtap="onUpload" hover-class="press">
+  <view class="fab" bindtap="onUpload" hover-class="press" hover-stay-time="80">
     <view class="fab-plus">＋</view>
   </view>
 </view>

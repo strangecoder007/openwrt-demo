@@ -1,13 +1,13 @@
 <view class="page upload-page">
   <view class="section-title">选择文件</view>
   <view class="btn-row">
-    <button class="btn-outline pick-btn" bindtap="pickImage" disabled="{{uploading}}">
-      <text class="pick-emoji">📷</text>
+    <button class="pick-btn" bindtap="pickImage" disabled="{{uploading}}" hover-class="press" hover-stay-time="80">
+      <image class="pick-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%2317352E%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M3%208a2%202%200%200%201%202-2h2l2-2h6l2%202h2a2%202%200%200%201%202%202v10a2%202%200%200%201-2%202H5a2%202%200%200%201-2-2z%27%2F%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2713%27%20r%3D%274%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
       <text class="pick-title">选照片</text>
       <text class="pick-hint">最多 9 张</text>
     </button>
-    <button class="btn-outline pick-btn" bindtap="pickVideo" disabled="{{uploading}}">
-      <text class="pick-emoji">🎬</text>
+    <button class="pick-btn" bindtap="pickVideo" disabled="{{uploading}}" hover-class="press" hover-stay-time="80">
+      <image class="pick-icon" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%2317352E%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%272%27%20y%3D%276%27%20width%3D%2714%27%20height%3D%2712%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M16%2010l6-3v10l-6-3z%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
       <text class="pick-title">选视频</text>
       <text class="pick-hint">≤500MB</text>
     </button>
@@ -15,7 +15,11 @@
 
   <view class="card" wx:if="{{files.length}}">
     <view class="file-row" wx:for="{{files}}" wx:key="index">
-      <view class="file-icon {{item.type}}">{{item.type === 'video' ? '🎬' : '🖼'}}</view>
+      <view class="file-icon {{item.type}}">
+        <image wx:if="{{item.thumb}}" class="fi-thumb" src="{{item.thumb}}" mode="aspectFill" data-index="{{index}}" catchtap="previewFile" />
+        <image wx:elif="{{item.type === 'video'}}" class="fi-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23B26E1F%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%272%27%20y%3D%276%27%20width%3D%2714%27%20height%3D%2712%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M16%2010l6-3v10l-6-3z%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
+        <image wx:else class="fi-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%233E8E5A%27%20stroke-width%3D%271.6%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%273%27%20y%3D%274%27%20width%3D%2718%27%20height%3D%2716%27%20rx%3D%272%27%2F%3E%3Ccircle%20cx%3D%279%27%20cy%3D%2710%27%20r%3D%272.2%27%2F%3E%3Cpath%20d%3D%27M3.5%2018l5-5%204%204%203-3%205%205%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
+      </view>
       <view class="file-info">
         <view class="file-name">{{index + 1}}. {{item.type === 'video' ? '视频' : '图片'}}</view>
         <view class="file-size">{{item.sizeLabel}}</view>
@@ -33,13 +37,14 @@
   <view class="card progress-card" wx:if="{{uploading}}">
     <view class="progress-head">
       <text class="progress-label">总进度</text>
-      <text class="progress-pct">{{percent}}%</text>
+      <text class="progress-pct"><text class="pct-num">{{percent}}</text><text class="pct-unit">%</text></text>
     </view>
-  <!-- 不能用 active：它会在每次 percent 更新时从 0 重播动画，总条看起来一直从头开始 -->
-  <progress percent="{{percent}}" stroke-width="12" activeColor="#d9822b" backgroundColor="#e3eae6" borderRadius="6" />
+    <view class="progress-track">
+      <view class="progress-fill" style="width: {{percent}}%"></view>
+    </view>
     <view class="progress-sub">{{done}}/{{total}} · {{currentName}}（{{filePercent}}%）</view>
   </view>
 
-  <button class="btn-primary big" bindtap="startUpload" disabled="{{uploading || files.length === 0}}">开始上传</button>
+  <button class="btn-primary big" bindtap="startUpload" disabled="{{uploading || files.length === 0}}" hover-class="press" hover-stay-time="80">开始上传</button>
   <view class="version">云盘 {{version}}</view>
 </view>

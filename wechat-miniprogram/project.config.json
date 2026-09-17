@@ -28,7 +28,13 @@
   },
   "simulatorPluginLibVersion": {},
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      { "type": "folder", "value": "preview" },
+      { "type": "folder", "value": "tests" },
+      { "type": "folder", "value": ".playwright-cli" },
+      { "type": "file", "value": ".gitignore" },
+      { "type": "file", "value": "README.md" }
+    ],
     "include": []
   },
   "editorSetting": {},

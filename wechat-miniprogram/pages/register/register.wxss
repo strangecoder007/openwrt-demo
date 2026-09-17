@@ -1,37 +1,85 @@
-.register-page { padding: 0 24rpx 80rpx; }
+.register-page { padding: 0 32rpx 96rpx; box-sizing: border-box; }
+
+/* —— Hero（与登录页同构） —— */
 .hero {
-  margin: -24rpx -24rpx 0;
-  background: linear-gradient(168deg, #1c3d3a 0%, #2c4f4b 100%);
-  border-radius: 0 0 30rpx 30rpx;
-  color: #fff;
-  padding: 0 0 60rpx;
+  margin: -32rpx -32rpx 0;
+  background:
+    radial-gradient(120% 90% at 85% -10%, var(--hero-glow) 0%, transparent 55%),
+    linear-gradient(165deg, var(--hero-1) 0%, var(--brand) 48%, var(--brand-deep) 100%);
+  border-radius: 0 0 40rpx 40rpx;
+  color: var(--on-brand);
+  padding: 0 0 68rpx;
 }
-.hero-body { padding: 60rpx 32rpx 0; text-align: center; }
-.logo {
-  width: 128rpx;
-  height: 128rpx;
-  margin: 0 auto 24rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1rpx solid rgba(255, 255, 255, 0.22);
+.hero-body { padding: 64rpx 40rpx 0; text-align: center; }
+.logo-ring {
+  width: 132rpx;
+  height: 132rpx;
+  margin: 0 auto 28rpx;
+  border-radius: 40rpx;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1rpx solid rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 64rpx;
+  box-shadow: 0 8rpx 28rpx rgba(0, 0, 0, 0.18);
 }
-.title { font-size: 44rpx; font-weight: 700; letter-spacing: 2rpx; }
-.subtitle { font-size: 24rpx; color: rgba(255, 255, 255, 0.72); margin-top: 12rpx; }
-.register-card { margin: -36rpx 0 0; padding: 34rpx 30rpx 28rpx; position: relative; z-index: 1; }
-.field-group { margin-bottom: 28rpx; }
-.field-label { font-size: 22rpx; color: #7c9a92; display: block; margin-bottom: 10rpx; letter-spacing: 1rpx; }
+.logo-img { width: 64rpx; height: 64rpx; }
+.eyebrow {
+  font-size: 22rpx;
+  letter-spacing: 8rpx;
+  color: var(--on-brand-dim);
+  margin-bottom: 12rpx;
+}
+.title { font-size: 48rpx; font-weight: 700; letter-spacing: 3rpx; }
+.subtitle { font-size: 24rpx; color: var(--on-brand-soft); margin-top: 14rpx; letter-spacing: 1rpx; }
+
+/* —— 表单卡 —— */
+.register-card { margin: -44rpx 0 0; padding: 40rpx 34rpx 32rpx; position: relative; z-index: 1; }
+.field-group { margin-bottom: 30rpx; }
+.field-label {
+  font-size: 22rpx;
+  color: var(--ink-2);
+  display: block;
+  margin-bottom: 14rpx;
+  letter-spacing: 2rpx;
+}
 .field {
-  background: #f2f5f3;
-  border: 1rpx solid #e3eae6;
-  border-radius: 10rpx;
-  padding: 22rpx 24rpx;
+  background: var(--surface-2);
+  border: 2rpx solid transparent;
+  border-radius: var(--r-md);
+  padding: 24rpx 28rpx;
   font-size: 28rpx;
+  color: var(--ink);
+  transition: border-color var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
 }
-.divider { height: 2rpx; background: #eef1ef; margin: 8rpx 0 30rpx; }
-.btn-primary { margin-top: 12rpx; }
-.btn-primary[disabled] { background: #e9c9a3; color: #fff; box-shadow: none; }
-.tip { font-size: 22rpx; color: #aab9b4; text-align: center; margin-top: 28rpx; line-height: 1.7; }
+/* placeholder-class 作用在占位符自身，不要写成 .field.ph */
+.ph { color: var(--ink-3); }
+
+/* 分隔：居中文字压在发丝线上 */
+.divider {
+  position: relative;
+  height: 2rpx;
+  background: var(--line);
+  margin: 12rpx 0 34rpx;
+}
+.divider-text {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface);
+  padding: 0 24rpx;
+  font-size: 22rpx;
+  color: var(--ink-3);
+  letter-spacing: 2rpx;
+}
+
+.btn-primary { margin-top: 16rpx; }
+.tip {
+  font-size: 22rpx;
+  color: var(--ink-3);
+  text-align: center;
+  margin-top: 30rpx;
+  line-height: 1.8;
+  letter-spacing: 1rpx;
+}

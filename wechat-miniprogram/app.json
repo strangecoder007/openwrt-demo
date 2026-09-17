@@ -4,14 +4,18 @@
     "pages/register/register",
     "pages/home/home",
     "pages/month/month",
+    "pages/detail/detail",
     "pages/upload/upload"
   ],
   "window": {
     "navigationBarTitleText": "云盘",
-    "navigationBarBackgroundColor": "#1c3d3a",
-    "navigationBarTextStyle": "white",
-    "backgroundColor": "#eef1ef"
+    "navigationBarBackgroundColor": "@navBgColor",
+    "navigationBarTextStyle": "@navTxtStyle",
+    "backgroundColor": "@bgColor",
+    "backgroundTextStyle": "@bgTxtStyle"
   },
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "style": "v2",
   "sitemapLocation": "sitemap.json"
 }

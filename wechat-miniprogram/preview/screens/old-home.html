@@ -1,0 +1,156 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>首页 · v1</title><style>* { box-sizing: border-box; }
+html, body { margin: 0; }
+view { display: block; }
+text { display: inline; }
+image { display: inline-block; }
+button { font: inherit; border: 0; background: none; margin: 0; padding: 0 14px; color: inherit; line-height: 2.55; }
+button::after { border: none; }
+input { font: inherit; outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+.chrome { position: sticky; top: 0; z-index: 50; }
+.statusbar { display: flex; justify-content: space-between; padding: 12px 22px 6px; color: #fff; font-size: 12px; font-weight: 600; }
+.navbar { display: flex; align-items: center; height: 44px; padding: 0 12px; color: #fff; }
+.nv-back { font-size: 26px; line-height: 1; padding: 0 6px; margin-top: -4px; }
+.nv-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.nv-side { width: 30px; }
+html, body {
+  background: #eef1ef;
+  font-size: 14px;
+  color: #24312e;
+  line-height: 1.45;
+}
+
+button {
+  font-size: 14px;
+  margin: 0;
+  padding: 0 14px;
+  line-height: 2.6;
+  box-sizing: border-box;
+}
+
+button::after { border: none; }
+
+.page {
+  padding: 12px;
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+/* 胶片齿孔带：贯穿各页头部的“家庭档案”签名元素 */
+.film-strip {
+  height: 9px;
+  background:
+    radial-gradient(circle at 3px 4.5px, #eef1ef 0 1.3px, transparent 1.6px) repeat-x 0 0 / 12px 9px,
+    #1c3d3a;
+}
+
+.card {
+  background: #fff;
+  border-radius: 7px;
+  padding: 15px;
+  margin-bottom: 11px;
+  border: 0.5px solid #e3eae6;
+  box-shadow: 0 3px 10px rgba(28, 61, 58, 0.06);
+}
+
+.btn-primary {
+  background: #d9822b;
+  color: #fff;
+  border-radius: 7px;
+  box-shadow: 0 4px 11px rgba(217, 130, 43, 0.28);
+}
+
+.btn-primary[disabled] { background: #e9c9a3; color: #fff; box-shadow: none; }
+.btn-primary.big { height: 46px; line-height: 46px; font-size: 15px; font-weight: 600; letter-spacing: 2px; }
+
+.btn-outline {
+  background: #fff;
+  color: #1c3d3a;
+  border: 1px solid #1c3d3a;
+  border-radius: 7px;
+}
+
+.btn-outline[disabled] { color: #aab9b4; border-color: #cfe0da; background: #f6f9f7; }
+
+.btn-ghost {
+  background: #e3eae6;
+  color: #2c4f4b;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  background: #cf4a3a;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-danger[disabled] { background: #e7b7b0; color: #fff; }
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 4px 4px 10px;
+  color: #1c3d3a;
+}
+
+.empty { text-align: center; color: #7c9a92; margin-top: 80px; }
+.empty-icon { font-size: 44px; margin-bottom: 10px; }
+.empty-text { font-size: 13px; }
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #d9822b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 15px rgba(217, 130, 43, 0.35);
+  z-index: 10;
+}
+
+.fab-plus { font-size: 30px; line-height: 1; }
+
+.home-page { padding: 0 0 80px; }
+.hero {
+  margin: -12px -12px 0;
+  background: linear-gradient(160deg, #1c3d3a 0%, #2c4f4b 100%);
+  border-radius: 0 0 15px 15px;
+  color: #fff;
+  padding: 0 0 28px;
+}
+.hero-body { padding: 24px 18px 0; }
+.hero-title { font-size: 23px; font-weight: 700; letter-spacing: 1px; }
+.hero-sub { font-size: 12px; color: rgba(255, 255, 255, 0.72); margin-top: 6px; }
+.hero-rule { width: 36px; height: 3px; border-radius: 1.5px; background: #d9822b; margin-top: 12px; }
+.month-list { padding: 13px 12px 0; }
+.month-card {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border: 0.5px solid #e3eae6;
+  border-radius: 7px;
+  padding: 13px 14px;
+  margin-bottom: 9px;
+  box-shadow: 0 3px 10px rgba(28, 61, 58, 0.05);
+}
+.month-card.press { opacity: 0.85; }
+.month-accent { width: 4px; height: 32px; border-radius: 2px; background: #d9822b; margin-right: 11px; }
+.month-info { flex: 1; }
+.month-name { font-size: 19px; font-weight: 700; color: #1c3d3a; letter-spacing: 0.5px; }
+.month-count { font-size: 11px; color: #7c9a92; margin-top: 3px; }
+.month-arrow { font-size: 19px; color: #1c3d3a; opacity: 0.4; font-weight: 300; }
+
+/* ---- 预览占位照片(只动背景) ---- */
+.mock-photo { background: linear-gradient(150deg, #8FA98F 0%, #5E7D74 48%, #3C5A50 100%) !important; }
+.mock-photo.m2 { background: linear-gradient(160deg, #C9B08A 0%, #96805C 60%, #6B5A3E 100%) !important; }
+.mock-photo.m3 { background: linear-gradient(140deg, #7E93B8 0%, #55688C 55%, #374664 100%) !important; }
+.mock-photo.m4 { background: linear-gradient(165deg, #B98A7E 0%, #8C5F55 58%, #5F3E37 100%) !important; }
+.mock-photo.m5 { background: linear-gradient(135deg, #A3B58C 0%, #71835D 52%, #4A573C 100%) !important; }
+.mock-photo.m6 { background: linear-gradient(155deg, #6E8F9E 0%, #46667300 60%, #2E454F 100%) !important; }</style><script>(function(){try{if(/theme=dark/.test(location.search))document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script></head><body><div class="chrome" style="background:#1c3d3a"><div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679; &#128267;</span></div><div class="navbar"><div class="nv-title">云盘</div><div class="nv-side"></div></div></div><view class="page home-page"><view class="hero"><view class="film-strip"></view><view class="hero-body"><view class="hero-title">我的云盘</view><view class="hero-sub">3 个月份备份</view><view class="hero-rule"></view></view></view><view class="month-list"><view class="month-card"><view class="month-accent"></view><view class="month-info"><view class="month-name">2026-09</view><view class="month-count">86 个文件</view></view><view class="month-arrow">›</view></view><view class="month-card"><view class="month-accent"></view><view class="month-info"><view class="month-name">2026-08</view><view class="month-count">132 个文件</view></view><view class="month-arrow">›</view></view><view class="month-card"><view class="month-accent"></view><view class="month-info"><view class="month-name">2026-07</view><view class="month-count">54 个文件</view></view><view class="month-arrow">›</view></view></view><view class="fab"><view class="fab-plus">＋</view></view></view></body></html>

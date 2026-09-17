@@ -1,0 +1,87 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>云盘小程序 · v2 改版预览</title><style>:root { --shell-bg: #101614; --shell-card: #171f1c; --shell-line: #232e2a; --shell-ink: #e8ede9; --shell-ink2: #8fa39c; --accent: #E09A4B; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--shell-bg); color: var(--shell-ink); font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+.topbar { position: sticky; top: 0; z-index: 99; background: rgba(16, 22, 20, 0.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--shell-line); padding: 14px 28px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.brand { font-size: 15px; font-weight: 700; letter-spacing: 1px; }
+.brand em { color: var(--accent); font-style: normal; }
+.tabs { display: flex; gap: 8px; margin-left: 12px; }
+.tab { padding: 7px 16px; border-radius: 999px; border: 1px solid var(--shell-line); background: transparent; color: var(--shell-ink2); font-size: 13px; cursor: pointer; transition: all .15s ease; }
+.tab:hover { color: var(--shell-ink); }
+.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.sizes { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.sz { padding: 5px 12px; border-radius: 8px; border: 1px solid var(--shell-line); background: transparent; color: var(--shell-ink2); font-size: 12px; cursor: pointer; }
+.sz.on { color: var(--accent); border-color: var(--accent); }
+.sep { width: 1px; height: 20px; background: var(--shell-line); margin: 0 6px; }
+.note { font-size: 12px; color: var(--shell-ink2); margin: 0 0 22px; line-height: 1.7; }
+.note code { background: #1d2825; padding: 1px 6px; border-radius: 4px; color: #cfe3dc; }
+.wrap { padding: 34px 28px 80px; }
+.sec { display: none; }
+.sec.on { display: block; }
+.sec-title { font-size: 12px; font-weight: 600; letter-spacing: 3px; color: var(--shell-ink2); margin: 0 0 20px; }
+.stage { display: flex; flex-wrap: wrap; gap: 34px; align-items: flex-start; }
+.col { display: flex; flex-direction: column; }
+.col .name { text-align: center; font-size: 13px; color: var(--shell-ink2); margin: 12px 0 0; letter-spacing: 1px; }
+.phone { width: 375px; height: 812px; border-radius: 44px; border: 6px solid #26312d; overflow: hidden; background: #fff; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45); }
+.phone iframe { width: 100%; height: 100%; border: 0; }
+.scaler { display: inline-block; transition: transform .2s ease; }
+.compare-row { display: flex; gap: 34px; margin-bottom: 46px; }
+.cmp-col { display: flex; flex-direction: column; }
+.cmp-tag { align-self: flex-start; font-size: 12px; font-weight: 600; letter-spacing: 2px; padding: 6px 14px; border-radius: 999px; margin-bottom: 12px; }
+.cmp-tag.old { background: #232e2a; color: #8fa39c; }
+.cmp-tag.new { background: rgba(224, 154, 75, 0.15); color: var(--accent); border: 1px solid rgba(224, 154, 75, 0.4); }
+@media (max-width: 900px) { .compare-row { flex-direction: column; } }</style></head><body><div class="topbar"><div class="brand">云盘小程序 <em>v2</em> · 墨绿档案 Premium</div><div class="tabs"><button class="tab on" data-target="sec-new">✦ 新版全览</button><button class="tab" data-target="sec-compare">前后对照</button><button class="tab" data-target="sec-states">组件状态</button></div><div class="sizes"><button class="th on" data-mode="light">浅色</button><button class="th" data-mode="dark">深色</button><div class="sep"></div><button class="sz on" data-w="375">375 · iPhone</button><button class="sz" data-w="414">414 · Android</button><button class="sz" data-w="768">768 · 平板</button></div></div><div class="wrap"><div class="sec on" id="sec-new"><div class="sec-title">NEW DESIGN — 六个页面（登录/注册/首页/文件列表/文件详情/上传）</div><div class="note">深浅色可在右上角切换：小程序真机走 <code>@media (prefers-color-scheme: dark)</code>，预览里用同一份令牌块的 <code>[data-theme="dark"]</code> 克隆（值完全相同，只是触发方式不同）。<br>旧版对照页没有暗色支持，切深色时保持原样 —— 这也是改版差异之一。</div><div class="stage"><div class="col"><div class="scaler"><div class="phone " id="new-home"><iframe src="screens/new-home.html" data-src="screens/new-home.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">首页</div></div><div class="col"><div class="scaler"><div class="phone " id="new-month"><iframe src="screens/new-month.html" data-src="screens/new-month.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">文件列表</div></div><div class="col"><div class="scaler"><div class="phone " id="new-detail"><iframe src="screens/new-detail.html" data-src="screens/new-detail.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">文件详情（信息展开）</div></div><div class="col"><div class="scaler"><div class="phone " id="new-detail-closed"><iframe src="screens/new-detail-closed.html" data-src="screens/new-detail-closed.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">文件详情（默认态）</div></div><div class="col"><div class="scaler"><div class="phone " id="new-upload"><iframe src="screens/new-upload.html" data-src="screens/new-upload.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">上传</div></div><div class="col"><div class="scaler"><div class="phone " id="new-login"><iframe src="screens/new-login.html" data-src="screens/new-login.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">登录</div></div><div class="col"><div class="scaler"><div class="phone " id="new-register"><iframe src="screens/new-register.html" data-src="screens/new-register.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">注册</div></div></div></div><div class="sec" id="sec-compare"><div class="sec-title">BEFORE / AFTER — 同屏对照</div><div class="compare-row" id="cmp-home"><div class="cmp-col"><div class="cmp-tag old">当前版本</div><div class="scaler"><div class="phone"><iframe src="screens/old-home.html" data-src="screens/old-home.html" scrolling="yes" frameborder="0"></iframe></div></div></div><div class="cmp-col"><div class="cmp-tag new">v2 改版</div><div class="scaler"><div class="phone"><iframe src="screens/new-home.html" data-src="screens/new-home.html" scrolling="yes" frameborder="0"></iframe></div></div></div></div><div class="compare-row" id="cmp-month"><div class="cmp-col"><div class="cmp-tag old">当前版本</div><div class="scaler"><div class="phone"><iframe src="screens/old-month.html" data-src="screens/old-month.html" scrolling="yes" frameborder="0"></iframe></div></div></div><div class="cmp-col"><div class="cmp-tag new">v2 改版</div><div class="scaler"><div class="phone"><iframe src="screens/new-month.html" data-src="screens/new-month.html" scrolling="yes" frameborder="0"></iframe></div></div></div></div><div class="compare-row" id="cmp-upload"><div class="cmp-col"><div class="cmp-tag old">当前版本</div><div class="scaler"><div class="phone"><iframe src="screens/old-upload.html" data-src="screens/old-upload.html" scrolling="yes" frameborder="0"></iframe></div></div></div><div class="cmp-col"><div class="cmp-tag new">v2 改版</div><div class="scaler"><div class="phone"><iframe src="screens/new-upload.html" data-src="screens/new-upload.html" scrolling="yes" frameborder="0"></iframe></div></div></div></div><div class="compare-row" id="cmp-login"><div class="cmp-col"><div class="cmp-tag old">当前版本</div><div class="scaler"><div class="phone"><iframe src="screens/old-login.html" data-src="screens/old-login.html" scrolling="yes" frameborder="0"></iframe></div></div></div><div class="cmp-col"><div class="cmp-tag new">v2 改版</div><div class="scaler"><div class="phone"><iframe src="screens/new-login.html" data-src="screens/new-login.html" scrolling="yes" frameborder="0"></iframe></div></div></div></div></div><div class="sec" id="sec-states"><div class="sec-title">STATES — 按钮八态 / 胶囊 / 网格选中 / 骨架屏 / 空态 / 编辑栏</div><div class="stage"><div class="col"><div class="scaler"><div class="phone " id="states"><iframe src="screens/states.html" data-src="screens/states.html" scrolling="yes" frameborder="0"></iframe></div></div><div class="name">组件状态一览</div></div></div></div></div><script>var SCALES = { 375: 1, 414: 414 / 375, 768: 768 / 375 };
+var curScale = 1;
+function applyScale(s) {
+  curScale = SCALES[s] || 1;
+  document.querySelectorAll(".scaler").forEach(function (el) {
+    var phone = el.querySelector(".phone");
+    if (!phone) return;
+    if (curScale === 1) { el.style.transform = ""; el.style.height = ""; phone.style.margin = ""; return; }
+    el.style.transformOrigin = "top left";
+    el.style.transform = "scale(" + curScale + ")";
+    el.style.height = (812 * curScale + 12) + "px";
+    el.style.width = (375 * curScale) + "px";
+    el.style.overflow = "hidden";
+  });
+}
+function applyTheme(mode) {
+  document.querySelectorAll(".phone iframe").forEach(function (f) {
+    var base = f.getAttribute("data-src");
+    if (!base) return;
+    f.src = base + (mode === "dark" ? "?theme=dark" : "");
+  });
+}
+function showTab(id) {
+  document.querySelectorAll(".sec").forEach(function (s) { s.classList.toggle("on", s.id === id); });
+  document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("on", t.dataset.target === id); });
+  window.scrollTo({ top: 0 });
+}
+function deepLink() {
+  var h = location.hash.replace("#", "");
+  if (!h) return;
+  var map = { home: "sec-new", month: "sec-new", detail: "sec-new", upload: "sec-new", login: "sec-new", register: "sec-new" };
+  if (h.indexOf("old-") === 0 || map[h]) showTab("sec-new");
+  if (h === "states") showTab("sec-states");
+  if (h === "compare") showTab("sec-compare");
+  var el = document.getElementById(h);
+  if (el) setTimeout(function () { el.scrollIntoView({ behavior: "smooth", block: "center" }); }, 60);
+}
+document.querySelectorAll(".tab").forEach(function (t) {
+  t.addEventListener("click", function () { showTab(t.dataset.target); history.replaceState(null, "", "#" + t.dataset.target.replace("sec-", "")); });
+});
+document.querySelectorAll(".sz").forEach(function (b) {
+  b.addEventListener("click", function () {
+    document.querySelectorAll(".sz").forEach(function (x) { x.classList.remove("on"); });
+    b.classList.add("on");
+    applyScale(parseInt(b.dataset.w, 10));
+  });
+});
+document.querySelectorAll(".th").forEach(function (b) {
+  b.addEventListener("click", function () {
+    document.querySelectorAll(".th").forEach(function (x) { x.classList.remove("on"); });
+    b.classList.add("on");
+    applyTheme(b.dataset.mode);
+  });
+});
+window.addEventListener("hashchange", deepLink);
+deepLink();</script></body></html>

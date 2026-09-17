@@ -1,0 +1,3 @@
+# 一次性产物：截图等。不要进版本库（这是要推 GitHub 的公开仓库），
+# 也不要放进 wechat-miniprogram/ —— 会撑爆小程序 2MB 代码包上限。
+_artifacts/

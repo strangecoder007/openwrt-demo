@@ -1,0 +1,178 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>上传 · v1</title><style>* { box-sizing: border-box; }
+html, body { margin: 0; }
+view { display: block; }
+text { display: inline; }
+image { display: inline-block; }
+button { font: inherit; border: 0; background: none; margin: 0; padding: 0 14px; color: inherit; line-height: 2.55; }
+button::after { border: none; }
+input { font: inherit; outline: none; }
+::-webkit-scrollbar { width: 0; height: 0; }
+.chrome { position: sticky; top: 0; z-index: 50; }
+.statusbar { display: flex; justify-content: space-between; padding: 12px 22px 6px; color: #fff; font-size: 12px; font-weight: 600; }
+.navbar { display: flex; align-items: center; height: 44px; padding: 0 12px; color: #fff; }
+.nv-back { font-size: 26px; line-height: 1; padding: 0 6px; margin-top: -4px; }
+.nv-title { flex: 1; text-align: center; font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+.nv-side { width: 30px; }
+html, body {
+  background: #eef1ef;
+  font-size: 14px;
+  color: #24312e;
+  line-height: 1.45;
+}
+
+button {
+  font-size: 14px;
+  margin: 0;
+  padding: 0 14px;
+  line-height: 2.6;
+  box-sizing: border-box;
+}
+
+button::after { border: none; }
+
+.page {
+  padding: 12px;
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+
+/* 胶片齿孔带：贯穿各页头部的“家庭档案”签名元素 */
+.film-strip {
+  height: 9px;
+  background:
+    radial-gradient(circle at 3px 4.5px, #eef1ef 0 1.3px, transparent 1.6px) repeat-x 0 0 / 12px 9px,
+    #1c3d3a;
+}
+
+.card {
+  background: #fff;
+  border-radius: 7px;
+  padding: 15px;
+  margin-bottom: 11px;
+  border: 0.5px solid #e3eae6;
+  box-shadow: 0 3px 10px rgba(28, 61, 58, 0.06);
+}
+
+.btn-primary {
+  background: #d9822b;
+  color: #fff;
+  border-radius: 7px;
+  box-shadow: 0 4px 11px rgba(217, 130, 43, 0.28);
+}
+
+.btn-primary[disabled] { background: #e9c9a3; color: #fff; box-shadow: none; }
+.btn-primary.big { height: 46px; line-height: 46px; font-size: 15px; font-weight: 600; letter-spacing: 2px; }
+
+.btn-outline {
+  background: #fff;
+  color: #1c3d3a;
+  border: 1px solid #1c3d3a;
+  border-radius: 7px;
+}
+
+.btn-outline[disabled] { color: #aab9b4; border-color: #cfe0da; background: #f6f9f7; }
+
+.btn-ghost {
+  background: #e3eae6;
+  color: #2c4f4b;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-danger {
+  background: #cf4a3a;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.btn-danger[disabled] { background: #e7b7b0; color: #fff; }
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 4px 4px 10px;
+  color: #1c3d3a;
+}
+
+.empty { text-align: center; color: #7c9a92; margin-top: 80px; }
+.empty-icon { font-size: 44px; margin-bottom: 10px; }
+.empty-text { font-size: 13px; }
+
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(30px + env(safe-area-inset-bottom));
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #d9822b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 15px rgba(217, 130, 43, 0.35);
+  z-index: 10;
+}
+
+.fab-plus { font-size: 30px; line-height: 1; }
+
+.upload-page { display: flex; flex-direction: column; }
+.section-title { margin: 4px 4px 15px; }
+.btn-row { display: flex; margin: 3px 0 20px; }
+.btn-row button { flex: 1; height: 75px; padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.btn-row button + button { margin-left: 10px; }
+.pick-emoji { font-size: 22px; line-height: 1.2; }
+.pick-title { font-size: 13.5px; font-weight: 600; color: #1c3d3a; margin-top: 3px; }
+.pick-hint { font-size: 10px; color: #7c9a92; margin-top: 2px; }
+.btn-outline[disabled] .pick-title { color: #aab9b4; }
+.file-row { display: flex; align-items: center; padding: 11px 0; border-bottom: 0.5px solid #eef1ef; }
+.file-row:last-child { border-bottom: none; }
+.file-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  margin-right: 11px;
+}
+.file-icon.image { background: #e8f1ec; }
+.file-icon.video { background: #fbe7d3; }
+.file-info { flex: 1; }
+.file-name { font-size: 13.5px; color: #24312e; font-weight: 500; }
+.file-size { font-size: 11px; color: #7c9a92; margin-top: 2px; }
+.file-status {
+  font-size: 10.5px;
+  margin-right: 8px;
+  padding: 2px 8px;
+  border-radius: 499.5px;
+  background: #e3eae6;
+  color: #2c4f4b;
+}
+.file-status.pending { color: #7c9a92; }
+.file-status.uploading { color: #d9822b; background: #fbe7d3; }
+.file-status.done { color: #2c8a4b; background: #e2f0e7; }
+.file-remove { font-size: 22px; color: #aab9b4; padding: 0 4px; font-weight: 300; }
+.progress-card { margin-top: 4px; }
+.progress-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.progress-label { font-size: 13px; color: #2c4f4b; }
+.progress-pct { font-size: 22px; font-weight: 700; color: #d9822b; }
+.progress-sub { font-size: 11px; color: #7c9a92; margin-top: 7px; word-break: break-all; }
+.version {
+  margin-top: auto;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 11px;
+  color: #7c9a92;
+  opacity: 0.45;
+}
+
+/* ---- 预览占位照片(只动背景) ---- */
+.mock-photo { background: linear-gradient(150deg, #8FA98F 0%, #5E7D74 48%, #3C5A50 100%) !important; }
+.mock-photo.m2 { background: linear-gradient(160deg, #C9B08A 0%, #96805C 60%, #6B5A3E 100%) !important; }
+.mock-photo.m3 { background: linear-gradient(140deg, #7E93B8 0%, #55688C 55%, #374664 100%) !important; }
+.mock-photo.m4 { background: linear-gradient(165deg, #B98A7E 0%, #8C5F55 58%, #5F3E37 100%) !important; }
+.mock-photo.m5 { background: linear-gradient(135deg, #A3B58C 0%, #71835D 52%, #4A573C 100%) !important; }
+.mock-photo.m6 { background: linear-gradient(155deg, #6E8F9E 0%, #46667300 60%, #2E454F 100%) !important; }</style><script>(function(){try{if(/theme=dark/.test(location.search))document.documentElement.setAttribute("data-theme","dark");}catch(e){}})();</script></head><body><div class="chrome" style="background:#1c3d3a"><div class="statusbar"><span>9:41</span><span>&#9679;&#9679;&#9679;&#9679; &#128267;</span></div><div class="navbar"><div class="nv-back">&#8249;</div><div class="nv-title">上传</div><div class="nv-side"></div></div></div><view class="page upload-page"><view class="section-title">选择文件</view><view class="btn-row"><button class="btn-outline pick-btn"><text class="pick-emoji">📷</text><text class="pick-title">选照片</text><text class="pick-hint">最多 9 张</text></button><button class="btn-outline pick-btn"><text class="pick-emoji">🎬</text><text class="pick-title">选视频</text><text class="pick-hint">≤500MB</text></button></view><view class="card"><view class="file-row"><view class="file-icon image">🖼</view><view class="file-info"><view class="file-name">1. 图片</view><view class="file-size">3.2 MB</view></view><view class="file-status done">✓ 完成</view><view class="file-remove">×</view></view><view class="file-row"><view class="file-icon video">🎬</view><view class="file-info"><view class="file-name">2. 视频</view><view class="file-size">128.4 MB</view></view><view class="file-status uploading">上传中 62%</view><view class="file-remove">×</view></view><view class="file-row"><view class="file-icon image">🖼</view><view class="file-info"><view class="file-name">3. 图片</view><view class="file-size">4.1 MB</view></view><view class="file-status pending">待上传</view><view class="file-remove">×</view></view></view><view class="card progress-card"><view class="progress-head"><text class="progress-label">总进度</text><text class="progress-pct">62%</text></view><div class="old-progress"><div style="width:62%"></div></div><view class="progress-sub">1/3 · IMG_20260917_091502.jpg（62%）</view></view><button class="btn-primary big">开始上传</button><view class="version">云盘 v1.4.0</view></view></body></html>

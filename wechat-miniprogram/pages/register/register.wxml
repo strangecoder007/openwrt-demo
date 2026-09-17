@@ -2,7 +2,10 @@
   <view class="hero">
     <view class="film-strip"></view>
     <view class="hero-body">
-      <view class="logo">🔑</view>
+      <view class="logo-ring">
+        <image class="logo-img" src="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23E8A656%27%20stroke-width%3D%271.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%278%27%20cy%3D%2712%27%20r%3D%274%27%2F%3E%3Cpath%20d%3D%27M11%2012h9m-4%200v3%27%2F%3E%3C%2Fsvg%3E" mode="aspectFit" />
+      </view>
+      <view class="eyebrow">FAMILY ARCHIVE</view>
       <view class="title">注册账号</view>
       <view class="subtitle">新账号与管理员共用同一个云盘</view>
     </view>
@@ -10,31 +13,27 @@
 
   <view class="card register-card">
     <view class="field-group">
-      <text class="field-label">服务器地址</text>
-      <input class="field" placeholder="https://cy.gcaiyy.xyz:34443" value="{{baseUrl}}" data-field="baseUrl" bindinput="onInput" />
-    </view>
-    <view class="field-group">
       <text class="field-label">管理员账号</text>
-      <input class="field" placeholder="backup" value="{{adminUser}}" data-field="adminUser" bindinput="onInput" />
+      <input class="field" placeholder="backup" placeholder-class="ph" value="{{adminUser}}" data-field="adminUser" bindinput="onInput" />
     </view>
     <view class="field-group">
       <text class="field-label">管理员密码（用于开通新账号）</text>
-      <input class="field" placeholder="请输入管理员密码" password value="{{adminPass}}" data-field="adminPass" bindinput="onInput" />
+      <input class="field" placeholder="请输入管理员密码" placeholder-class="ph" password value="{{adminPass}}" data-field="adminPass" bindinput="onInput" />
     </view>
-    <view class="divider"></view>
+    <view class="divider"><text class="divider-text">以下为新账号信息</text></view>
     <view class="field-group">
       <text class="field-label">新用户名（3-32 位字母数字）</text>
-      <input class="field" placeholder="例如 family" value="{{newUser}}" data-field="newUser" bindinput="onInput" />
+      <input class="field" placeholder="例如 family" placeholder-class="ph" value="{{newUser}}" data-field="newUser" bindinput="onInput" />
     </view>
     <view class="field-group">
       <text class="field-label">新密码（至少 6 位）</text>
-      <input class="field" placeholder="请输入密码" password value="{{newPass}}" data-field="newPass" bindinput="onInput" />
+      <input class="field" placeholder="请输入密码" placeholder-class="ph" password value="{{newPass}}" data-field="newPass" bindinput="onInput" />
     </view>
     <view class="field-group">
       <text class="field-label">确认新密码</text>
-      <input class="field" placeholder="再输一次" password value="{{newPass2}}" data-field="newPass2" bindinput="onInput" />
+      <input class="field" placeholder="再输一次" placeholder-class="ph" password value="{{newPass2}}" data-field="newPass2" bindinput="onInput" />
     </view>
-    <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}">{{loading ? '注册中…' : '注 册'}}</button>
+    <button class="btn-primary big" bindtap="onSubmit" disabled="{{loading}}" hover-class="press" hover-stay-time="80">{{loading ? '注册中…' : '注 册'}}</button>
     <view class="tip">注册需要管理员密码；新账号登录后可查看、上传、删除云盘文件。</view>
   </view>
 </view>
