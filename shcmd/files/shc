@@ -1,0 +1,476 @@
+#!/bin/sh
+# shc - a thin command-line wrapper around the shcmd daemon.
+#
+# Purpose: make the board's whitelisted commands callable without hand-encoding
+# URLs and tokens. Designed to be driven by a human at a terminal OR by an
+# assistant that shells out -- hence the --json mode and the schema command.
+#
+# Install: copy to /usr/bin/shc on the board (it must run there, so it can talk
+#          to 127.0.0.1:8099 -- the allowlist normally permits loopback only).
+#
+# Usage:
+#   shc ls                      list commands (one per line, marked [danger])
+#   shc schema                  full machine-readable contract
+#   shc info <command>          one command's contract
+#   shc run <command> [k=v ...] run it; args are named, e.g. iface=any n=100
+#   shc wait <what> [k=v ...]   poll until a condition holds (see below)
+#   shc raw <query>             GET /r?<query> verbatim (escape hatch)
+#   shc --json ...              emit raw JSON instead of pretty text
+#
+# wait targets:
+#   shc wait service NAME                procd reports the instance running
+#   shc wait iface IFACE                 netdev exists and is UP
+#   shc wait chan N                      wlan0 is on channel N
+#   shc wait tcp HOST:PORT               accept() succeeds
+#   shc wait cmd NAME [k=v ...]          that command exits 0
+#   shc wait output NAME PATTERN [k=v...] command output contains PATTERN
+#
+# wait options (anywhere after the target):
+#   timeout=SECONDS   give up after this long      (default 60)
+#   interval=SECONDS  poll spacing                 (default 2)
+#   gone=1            invert: wait until NOT true
+
+CONF=/etc/shcmd.conf
+HOST=127.0.0.1
+
+# ---- locate the daemon port and token -------------------------------------
+# Read the same directives the daemon reads. Deliberately simple: this file is
+# a flat key/value list, not UCI.
+conf_get() {
+	sed -n "s/^$1[[:space:]]\{1,\}\(.*\)$/\1/p" "$CONF" 2>/dev/null | head -n1 \
+		| sed -e 's/^"//' -e 's/"$//'
+}
+
+PORT=$(conf_get port)
+[ -n "$PORT" ] || PORT=8099
+
+TOKEN=$(conf_get token)
+if [ -z "$TOKEN" ]; then
+	echo "shc: no token in $CONF" >&2
+	exit 1
+fi
+case "$TOKEN" in
+	CHANGE-ME*)
+		echo "shc: token is still the CHANGE-ME placeholder; requests will be refused" >&2
+		exit 1
+		;;
+esac
+
+JSON=0
+if [ "$1" = "--json" ]; then
+	JSON=1
+	shift
+fi
+
+# ---- percent-encode (busybox awk has no sprintf("%c"), so do it in shell) --
+enc() {
+	_hex=$(printf '%s' "$1" | hexdump -v -e '/1 "%02x"')
+	_o=""
+	while [ -n "$_hex" ]; do
+		_p=$(printf '%s' "$_hex" | cut -c1-2)
+		_hex=$(printf '%s' "$_hex" | cut -c3-)
+		_o="$_o%$_p"
+	done
+	printf '%s' "$_o"
+}
+
+fetch() {
+	# $1 is the endpoint plus query, WITHOUT a leading "?": "c", "schema",
+	# or "r?n=uptime". The daemon splits on the first '?', so the '?' has to
+	# be inserted here -- appending "&k=" to a bare path would make the whole
+	# thing look like a path and the token would never be parsed.
+	#
+	# --content-on-error is essential: without it wget discards the response
+	# body for 4xx, and every rejected request (bad enum, missing argument)
+	# would look like an empty reply instead of the reason.
+	case "$1" in
+	*"?"*) url="http://$HOST:$PORT/$1&k=$(enc "$TOKEN")" ;;
+	*)     url="http://$HOST:$PORT/$1?k=$(enc "$TOKEN")" ;;
+	esac
+	wget -q --content-on-error -T 120 -O - "$url" 2>/dev/null
+}
+
+# ---- pretty-print ---------------------------------------------------------
+# The board has no jq, and this is only for human eyes: pull out the few fields
+# that matter and leave the rest alone.
+pretty_result() {
+	raw=$1
+
+	# Errors first: the daemon returns {"ok":false,"error":"..."} with a 4xx
+	# status, and wget's -q discards the body on those, so if we got here with
+	# a body it is usually a real result. Still, handle the error shape.
+	case "$raw" in
+	*'"ok":false'*)
+		err=$(printf '%s' "$raw" | sed -n 's/.*"error":"\([^"]*\)".*/\1/p')
+		[ -n "$err" ] || err="$raw"
+		printf 'ERROR: %s\n' "$err"
+		return
+		;;
+	esac
+
+	meta=""
+	case "$raw" in
+	*'"status":'*) meta="exit $(printf '%s' "$raw" | sed -n 's/.*"status":\([-0-9]*\).*/\1/p')" ;;
+	esac
+	case "$raw" in
+	*'"timed_out":true'*)  meta="$meta  TIMED OUT" ;;
+	esac
+	case "$raw" in
+	*'"truncated":true'*)  meta="$meta  TRUNCATED" ;;
+	esac
+	[ -n "$meta" ] && printf '%s\n' "$meta"
+
+	# Pull the output field and unescape the newlines the daemon encoded.
+	# The trailing "","truncated":...}" is stripped LAST, after the escapes are
+	# resolved, because the escaped \n would otherwise hide the boundary.
+	printf '%s' "$raw" \
+		| sed -e 's/^.*"output":"//' \
+		| sed -e 's/\\"/"/g' \
+		| sed -e 's/\\\\/\\/g' \
+		| sed -e 's/\\n/\
+/g' \
+		| sed -e 's/","truncated":\(true\|false\)}$//' \
+		| sed -e 's/"}$//'
+}
+
+# ---- subcommands ----------------------------------------------------------
+if [ $# -eq 0 ]; then
+	# Bare invocation shows usage; "shc ls" is the explicit way to list.
+	sed -n '11,31p' "$0" | sed 's/^# \{0,1\}//'
+	exit 2
+fi
+
+cmd=$1
+shift
+
+case "$cmd" in
+ls|list)
+	if [ "$JSON" = 1 ]; then
+		fetch "c"
+		exit
+	fi
+	# Split the command array on "},{" so each entry can be inspected alone.
+	# Entries are then picked apart with sed, which is enough because the
+	# daemon emits them without nested objects inside "args".
+	fetch "c" | sed -e 's/},{"name"/}\
+{"name"/g' | while IFS= read -r entry; do
+		name=$(printf '%s' "$entry" | sed -n 's/.*"name":"\([^"]*\)".*/\1/p')
+		[ -n "$name" ] || continue
+		desc=$(printf '%s' "$entry" | sed -n 's/.*"desc":"\([^"]*\)".*/\1/p')
+		dang=$(printf '%s' "$entry" | grep -q '"danger":true' && echo " [danger]" || echo "")
+		printf '%-20s%s\n' "$name" "$dang"
+		[ -n "$desc" ] && printf '    %s\n' "$desc"
+
+		# Labels in order; "slot" is implicit from position.
+		labels=$(printf '%s' "$entry" \
+			| grep -o '"label":"[^"]*"' \
+			| sed -e 's/^"label":"//' -e 's/"$//')
+		if [ -n "$labels" ]; then
+			n=0
+			printf '%s\n' "$labels" | while IFS= read -r lbl; do
+				n=$((n + 1))
+				param=$([ "$n" = 1 ] && echo "a" || echo "a$((n-1))")
+				printf '    arg %d  %-12s (%s=)\n' "$n" "$lbl" "$param"
+			done
+		fi
+	done
+	;;
+
+schema)
+	fetch "schema"
+	;;
+
+info)
+	name=$1
+	[ -n "$name" ] || { echo "usage: shc info <command>" >&2; exit 2; }
+	all=$(fetch "schema")
+
+	# Pull out the one entry whose "name" matches. The command array is a flat
+	# list of objects, and each object's only nested array is "args", so
+	# splitting on the entry separator first is more reliable than trying to
+	# match balanced braces with sed.
+	entry=$(printf '%s' "$all" \
+		| sed -e 's/},{"name"/}\
+{"name"/g' \
+		| grep -F "\"name\":\"$name\"" \
+		| head -n1)
+	if [ -z "$entry" ]; then
+		echo "shc: no such command: $name" >&2
+		exit 1
+	fi
+
+	if [ "$JSON" = 1 ]; then
+		printf '%s\n' "$entry"
+		exit
+	fi
+
+	# Human view: description first, then one line per argument.
+	# Each printf is given its own trailing newline; the entry itself has none,
+	# so relying on sed's "p" alone would run the sections together.
+	desc=$(printf '%s' "$entry" | sed -n 's/.*"desc":"\([^"]*\)".*/\1/p')
+	printf '  %s\n' "$desc"
+	printf '%s' "$entry" | grep -o '"danger":true' >/dev/null \
+		&& echo "  [danger] changes system state"
+
+	timeout=$(printf '%s' "$entry" | sed -n 's/.*"timeout":\([0-9]*\).*/\1/p')
+	printf '  timeout: %ss\n' "$timeout"
+
+	# Each arg object, one per line. awk does the field extraction: sed chains
+	# for JSON fragments are unreadable and easy to get subtly wrong.
+	printf '%s' "$entry" | sed -e 's/},{/}\
+{/g' | grep -o '{"slot":[^}]*}' | awk '
+	{
+		line = $0
+		slot = ""; param = ""; label = ""; ex = ""; expec = ""
+		req = "optional"; en = ""; rng = ""
+
+		if (match(line, /"slot":[0-9]+/))
+			slot = substr(line, RSTART + 7, RLENGTH - 7)
+		if (match(line, /"param":"[^"]*"/))
+			param = substr(line, RSTART + 9, RLENGTH - 10)
+		if (match(line, /"label":"[^"]*"/))
+			label = substr(line, RSTART + 9, RLENGTH - 10)
+		if (match(line, /"example":"[^"]*"/))
+			ex = substr(line, RSTART + 11, RLENGTH - 12)
+		if (match(line, /"expect":"[^"]*"/))
+			expec = substr(line, RSTART + 10, RLENGTH - 11)
+		if (line ~ /"required":true/)
+			req = "REQUIRED"
+		if (match(line, /"enum":"[^"]*"/))
+			en = " [" substr(line, RSTART + 8, RLENGTH - 9) "]"
+		if (match(line, /"range":\[[0-9]+,[0-9]+\]/)) {
+			r = substr(line, RSTART, RLENGTH)
+			gsub(/[^0-9,]/, "", r)
+			split(r, p, ",")
+			rng = " range=" p[1] ".." p[2]
+		}
+
+		printf "  slot %s (param %s): %s=%s  %s%s%s\n", \
+			slot, param, label, ex, req, en, rng
+		if (expec != "")
+			printf "      %s\n", expec
+	}'
+	;;
+
+run)
+	name=$1
+	[ -n "$name" ] || { echo "usage: shc run <command> [k=v ...]" >&2; exit 2; }
+	shift
+
+	q="r?n=$(enc "$name")"
+	slot=1
+	for kv in "$@"; do
+		k=${kv%%=*}
+		v=${kv#*=}
+		if [ "$k" = "$kv" ]; then
+			echo "shc: expected key=value, got '$kv'" >&2
+			exit 2
+		fi
+		q="$q&$k=$(enc "$v")"
+		slot=$((slot+1))
+	done
+
+	resp=$(fetch "$q")
+	if [ "$JSON" = 1 ]; then
+		printf '%s\n' "$resp"
+		exit
+	fi
+	pretty_result "$resp"
+	;;
+
+raw)
+	q=$1
+	[ -n "$q" ] || { echo "usage: shc raw <query>" >&2; exit 2; }
+	fetch "$q"
+	echo
+	;;
+
+# ---------------------------------------------------------------------------
+# wait
+#
+# Polls a condition until it holds or the deadline passes. The point is to keep
+# "change something, then confirm it took effect" in ONE shell command instead
+# of forcing a caller (a person or an assistant) to sleep-and-retry by hand,
+# which wastes round trips and produces flaky sequences.
+#
+# Each predicate is deliberately cheap: it runs every few seconds for up to a
+# minute, and this board is a 528 MHz single core.
+# ---------------------------------------------------------------------------
+wait)
+	kind=$1
+	[ -n "$kind" ] || { echo "usage: shc wait <service|iface|chan|tcp|cmd|output> ..." >&2; exit 2; }
+	shift
+
+	# Defaults; overwritten by timeout=/interval=/gone= wherever they appear.
+	w_timeout=60
+	w_interval=2
+	w_gone=0
+	w_args=""
+
+	# Split positional values from option values. Options can appear anywhere
+	# so `shc wait cmd logtail a=3 timeout=10` reads naturally.
+	case "$kind" in
+	cmd|output)
+		w_target=$1; shift
+		[ -n "$w_target" ] || { echo "shc: wait $kind needs a command name" >&2; exit 2; }
+		;;
+	*)
+		w_target=$1; shift
+		[ -n "$w_target" ] || { echo "shc: wait $kind needs a target" >&2; exit 2; }
+		;;
+	esac
+
+	# wait output takes a pattern as the next positional.
+	if [ "$kind" = output ]; then
+		w_pattern=$1; shift
+		[ -n "$w_pattern" ] || { echo "shc: wait output needs a pattern" >&2; exit 2; }
+	fi
+
+	for kv in "$@"; do
+		k=${kv%%=*}
+		v=${kv#*=}
+		case "$k" in
+		timeout)  w_timeout=$v ;;
+		interval) w_interval=$v ;;
+		gone)     w_gone=$v ;;
+		*)        w_args="$w_args $kv" ;;
+		esac
+	done
+
+	# --- predicates: return 0 when the condition holds ---------------------
+	# All are wrapped so a missing tool yields "not yet" instead of a crash.
+	#
+	# build_query turns the collected k=v extras into a "&k=enc(v)" suffix.
+	# Doing it with an explicit loop (not a $(...) inside a string) avoids the
+	# quoting maze that nested command substitution creates in ash.
+	build_query() {
+		bq="r?n=$(enc "$w_target")"
+		for bqv in $w_args; do
+			bq="$bq&${bqv%%=*}=$(enc "${bqv#*=}")"
+		done
+		printf '%s' "$bq"
+	}
+
+	w_test() {
+		case "$kind" in
+		service)
+			# ubus prints the instance state as JSON; "running": true is the
+			# only field we need, and grepping it keeps the check to one fork.
+			ubus call service list "{\"name\":\"$w_target\"}" 2>/dev/null \
+				| grep -q '"running": true'
+			;;
+		iface)
+			# Must both EXIST and be administratively up. `ip -o link` shows
+			# "UP" only in the <...> flags of an up interface; matching the
+			# bare word avoids counting NO-CARRIER states as ready.
+			ip -o link show "$w_target" 2>/dev/null \
+				| grep -q '<[^>]*\bUP\b'
+			;;
+		chan)
+			iwinfo wlan0 info 2>/dev/null \
+				| sed -n 's/.*Channel: \([0-9]*\).*/\1/p' \
+				| grep -qx "$w_target"
+			;;
+		tcp)
+			# busybox nc on this image only supports `nc IPADDR PORT`: no -z,
+			# no -w, and it blocks on connect. So run it against /dev/null in
+			# the background, give it a short grace period, then kill it. A
+			# successful connect exits 0 almost at once; a refused one exits
+			# non-zero; a dropped one hangs until we kill it. Either way the
+			# answer is bounded by the loop below.
+			#
+			# Split host and port on the LAST colon so bracketed IPv6 literals
+			# still work, then strip the brackets.
+			wh=${w_target%:*}
+			wp=${w_target##*:}
+			wh=${wh#\[}
+			wh=${wh%\]}
+			nc "$wh" "$wp" </dev/null >/dev/null 2>&1 &
+			ncp=$!
+			ncw=0
+			while kill -0 $ncp 2>/dev/null && [ $ncw -lt 2 ]; do
+				sleep 1
+				ncw=$((ncw + 1))
+			done
+			if kill -0 $ncp 2>/dev/null; then
+				kill $ncp 2>/dev/null
+				wait $ncp 2>/dev/null
+				return 1        # still hanging: not reachable
+			fi
+			wait $ncp 2>/dev/null
+			return $?
+			;;
+		cmd)
+			# Reuse the daemon so the wait sees exactly what a caller would.
+			resp=$(fetch "$(build_query)")
+			printf '%s' "$resp" | grep -q '"ok":true'
+			;;
+		output)
+			resp=$(fetch "$(build_query)")
+			printf '%s' "$resp" | grep -q -- "$w_pattern"
+			;;
+		*)
+			echo "shc: unknown wait target '$kind'" >&2
+			echo "     expected: service | iface | chan | tcp | cmd | output" >&2
+			exit 2
+			;;
+		esac
+	}
+
+	# --- poll ---------------------------------------------------------------
+	#
+	# Deadline is measured against the wall clock, not a counter of sleeps.
+	# Each predicate can itself block (the tcp probe may wait ~2s for nc), so
+	# incrementing a counter by the sleep interval alone made a 10s budget
+	# actually run for ~17s. Date arithmetic is coarse (seconds) but exact
+	# enough here and needs no extra tooling.
+	w_start=$(date +%s)
+
+	while :; do
+		if w_test; then
+			w_status=0
+		else
+			w_status=1
+		fi
+
+		w_elapsed=$(( $(date +%s) - w_start ))
+
+		# gone=1 flips the sense of the test.
+		if [ "$w_gone" = 1 ]; then
+			if [ $w_status -ne 0 ]; then
+				printf 'ok: %s %s is gone (after %ss)\n' "$kind" "$w_target" "$w_elapsed"
+				exit 0
+			fi
+		else
+			if [ $w_status -eq 0 ]; then
+				printf 'ok: %s %s ready (after %ss)\n' "$kind" "$w_target" "$w_elapsed"
+				exit 0
+			fi
+		fi
+
+		if [ $w_elapsed -ge $w_timeout ]; then
+			if [ "$w_gone" = 1 ]; then
+				printf 'timeout: %s %s is still present after %ss\n' \
+					"$kind" "$w_target" "$w_elapsed" >&2
+			else
+				printf 'timeout: %s %s not ready after %ss\n' \
+					"$kind" "$w_target" "$w_elapsed" >&2
+			fi
+			exit 1
+		fi
+
+		# Do not oversleep past the deadline on the final iteration.
+		w_remain=$((w_timeout - w_elapsed))
+		if [ $w_remain -lt $w_interval ]; then
+			sleep $w_remain
+		else
+			sleep $w_interval
+		fi
+	done
+	;;
+
+*)
+	sed -n '11,31p' "$0" | sed 's/^# \{0,1\}//'
+	exit 2
+	;;
+esac

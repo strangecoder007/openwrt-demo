@@ -1,0 +1,182 @@
+/* shcmd - LuCI view styles */
+
+.sc-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1em;
+	padding: .4em 0;
+}
+
+.sc-status {
+	font-size: 92%;
+	padding: .25em .7em;
+	border-radius: 3px;
+	background: #eef;
+}
+.sc-status.sc-ok   { background: #e7f6e7; color: #245c24; }
+.sc-status.sc-warn { background: #fff6e0; color: #7a5b00; }
+.sc-status.sc-bad  { background: #fdeaea; color: #8b1a1a; }
+
+.sc-hint {
+	color: #666;
+	font-size: 90%;
+	margin: .3em 0 .8em;
+}
+
+.sc-empty {
+	padding: 1em;
+	color: #666;
+	font-style: italic;
+}
+
+.sc-cmds {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .5em;
+}
+
+.sc-cmd {
+	position: relative;
+	padding: .45em 2.6em .45em .9em;
+	border: 1px solid #b8c0cc;
+	border-radius: 4px;
+	background: #f7f9fb;
+	cursor: pointer;
+	font-size: 93%;
+	font-family: monospace;
+}
+.sc-cmd:hover {
+	background: #eaf1f8;
+	border-color: #7d93ad;
+}
+.sc-cmd.sc-selected {
+	background: #d9e8f7;
+	border-color: #4a7db0;
+	font-weight: bold;
+}
+/* State-changing commands: red left edge, so they are not clicked idly. */
+.sc-cmd.sc-danger {
+	border-left: 3px solid #d9534f;
+	background: #fdf6f6;
+}
+.sc-cmd.sc-danger:hover {
+	background: #fbeaea;
+}
+.sc-cmd-t {
+	position: absolute;
+	right: .5em;
+	top: 50%;
+	transform: translateY(-50%);
+	font-size: 76%;
+	color: #8a929c;
+	font-family: sans-serif;
+}
+
+.sc-args {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: .8em 1em;
+}
+
+.sc-arg {
+	display: flex;
+	flex-direction: column;
+	min-width: 16em;
+}
+.sc-arg-label {
+	color: #333;
+	font-size: 88%;
+	font-weight: bold;
+	margin-bottom: .2em;
+}
+.sc-arg input {
+	width: 100%;
+	padding: .32em .45em;
+	border: 1px solid #b8c0cc;
+	border-radius: 3px;
+	font-family: monospace;
+}
+.sc-arg-hint {
+	color: #888;
+	font-size: 78%;
+	margin-top: .2em;
+	max-width: 22em;
+}
+
+.sc-noargs {
+	color: #666;
+	font-size: 90%;
+	font-style: italic;
+	margin-bottom: .7em;
+}
+
+.sc-run-row {
+	width: 100%;
+	margin-top: .3em;
+}
+
+.sc-meta {
+	font-size: 85%;
+	color: #555;
+	margin-bottom: .4em;
+	min-height: 1.2em;
+	font-family: monospace;
+}
+
+.sc-out {
+	margin: 0;
+	padding: .8em 1em;
+	background: #1e2228;
+	color: #d6dee8;
+	border-radius: 4px;
+	font-family: monospace;
+	font-size: 88%;
+	line-height: 1.45;
+	max-height: 34em;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+.sc-out.sc-ok    { border-left: 4px solid #4caf50; }
+.sc-out.sc-warn  { border-left: 4px solid #e0a800; }
+.sc-out.sc-bad   { border-left: 4px solid #d9534f; }
+.sc-out.sc-running { border-left: 4px solid #4a7db0; }
+
+.sc-dim { color: #7d8794; }
+
+/* ---- upload ---- */
+.sc-upload {
+	display: flex;
+	align-items: center;
+	gap: .8em;
+	flex-wrap: wrap;
+}
+.sc-upload-status {
+	font-size: 88%;
+	color: #555;
+	font-family: monospace;
+}
+.sc-upload-status.sc-ok-text  { color: #245c24; }
+.sc-upload-status.sc-bad-text { color: #8b1a1a; }
+
+.sc-uploads {
+	margin-top: .8em;
+}
+.sc-upload-row {
+	display: flex;
+	align-items: center;
+	gap: .7em;
+	padding: .25em 0;
+	font-size: 90%;
+}
+.sc-upload-row code {
+	background: #f3f5f8;
+	border: 1px solid #dde2e8;
+	border-radius: 3px;
+	padding: .1em .4em;
+}
+.sc-upload-row .cbi-button {
+	margin-left: auto;
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Refresh LuCI caches so the new menu entry appears immediately.
+rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
+exit 0

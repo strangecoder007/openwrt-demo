@@ -1,0 +1,18 @@
+{
+  "luci-app-shcmd": {
+    "description": "Grant UCI access for luci-app-shcmd",
+    "read": {
+      "file": {
+        "/etc/shcmd.conf": [ "read" ]
+      }
+    },
+    "write": {
+      "file": {
+        "/etc/shcmd.conf": [ "write" ]
+      },
+      "ubus": {
+        "service": [ "list" ]
+      }
+    }
+  }
+}

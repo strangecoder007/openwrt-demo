@@ -1,0 +1,56 @@
+<%+header%>
+
+<link rel="stylesheet" href="<%=resource%>/view/shcmd.css?v=4" />
+<script type="text/javascript" src="<%=resource%>/view/shcmd.js?v=4"></script>
+
+<h2 name="content"><%:Remote Commands%></h2>
+
+<div class="cbi-section">
+	<div class="sc-bar">
+		<span class="sc-status" id="sc-status">
+			<em class="spinning"><%:Checking daemon...%></em>
+		</span>
+		<button class="cbi-button cbi-button-reload" id="sc-refresh"><%:Refresh%></button>
+	</div>
+</div>
+
+<div class="cbi-section">
+	<h3><%:Available commands%></h3>
+	<p class="sc-hint">
+		<%:Pick a command. Red entries change system state and ask for confirmation. The list and its arguments come from /etc/shcmd.conf.%>
+	</p>
+	<div class="sc-cmds" id="sc-cmds">
+		<em class="spinning"><%:Loading command list...%></em>
+	</div>
+</div>
+
+<div class="cbi-section" id="sc-args-section" style="display:none">
+	<h3><%:Run%> <small id="sc-args-for"></small></h3>
+	<p class="sc-hint" id="sc-desc"></p>
+	<div class="sc-args" id="sc-args"></div>
+</div>
+
+<div class="cbi-section">
+	<h3><%:Package upload%></h3>
+	<p class="sc-hint">
+		<%:Upload an ipk here, then run the install-ipk command with the path it reports. Files land in /tmp (tmpfs) and are lost on reboot.%>
+	</p>
+	<div class="sc-upload">
+		<input type="file" id="sc-file" accept=".ipk" />
+		<button type="button" class="cbi-button cbi-button-action" id="sc-upload"><%:Upload%></button>
+		<span class="sc-upload-status" id="sc-upload-status"></span>
+	</div>
+	<div class="sc-uploads" id="sc-uploads"></div>
+</div>
+
+<div class="cbi-section">
+	<h3><%:Command output%></h3>
+	<div class="sc-meta" id="sc-meta"></div>
+	<pre class="sc-out" id="sc-out"><em class="sc-dim"><%:No command has been run yet.%></em></pre>
+</div>
+
+<script type="text/javascript">//<![CDATA[
+	ShCmd.init();
+//]]></script>
+
+<%+footer%>

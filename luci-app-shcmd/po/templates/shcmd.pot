@@ -1,0 +1,68 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Remote Commands"
+msgstr ""
+
+msgid "Run"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Token-authenticated HTTP endpoint that runs a fixed list of shell commands. The whitelist itself lives in the config file and is deliberately not editable from the web UI."
+msgstr ""
+
+msgid "Endpoint"
+msgstr ""
+
+msgid "Token"
+msgstr ""
+
+msgid "Shared secret. Requests without it are refused. Leave unchanged to keep the current value."
+msgstr ""
+
+msgid "Bind address"
+msgstr ""
+
+msgid "Port"
+msgstr ""
+
+msgid "Max extra arguments"
+msgstr ""
+
+msgid "Allowed source networks"
+msgstr ""
+
+msgid "CIDR list. Empty means any source is accepted, which is not recommended when the port is reachable from the WAN."
+msgstr ""
+
+msgid "Checking daemon..."
+msgstr ""
+
+msgid "Refresh"
+msgstr ""
+
+msgid "Available commands"
+msgstr ""
+
+msgid "Click a command to run it. The list comes from /etc/shcmd.conf; only those names are forwarded to the daemon."
+msgstr ""
+
+msgid "Loading command list..."
+msgstr ""
+
+msgid "Arguments"
+msgstr ""
+
+msgid "Arguments are passed as separate argv entries. Shell metacharacters are never interpreted."
+msgstr ""
+
+msgid "Output"
+msgstr ""
+
+msgid "Command output"
+msgstr ""
+
+msgid "No command has been run yet."
+msgstr ""
