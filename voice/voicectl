@@ -1,0 +1,59 @@
+#!/bin/sh
+#
+# voicectl —— 语音助手包装脚本
+#
+# 读取 /etc/voice.conf 后调用 /usr/bin/voice
+#
+# 用法：
+#   voicectl ask [秒数]       一轮对话（录音→ASR→LLM→TTS→播放）
+#   voicectl chat             多轮对话，Ctrl-C 退出
+#   voicectl e2e              全自动端到端测试（不用麦克风）
+#   voicectl llmtest "文本"    纯文本测大模型
+#   voicectl loopback         回环测试 TTS→ASR
+#   voicectl selftest         离线自检
+#   voicectl info             设备与配置信息
+#   voicectl record <文件> [秒] 录音
+#   voicectl play <文件>       播放
+#
+# 其它 voice 子命令会原样透传：
+#   voicectl loop [秒]
+
+CONF=/etc/voice.conf
+VOICE_BIN=/usr/bin/voice
+
+if [ ! -x "$VOICE_BIN" ]; then
+    echo "错误: $VOICE_BIN 不存在或不可执行" >&2
+    exit 1
+fi
+
+if [ -f "$CONF" ]; then
+    # shellcheck disable=SC1090
+    . "$CONF"
+    export TENCENT_SECRET_ID TENCENT_SECRET_KEY TENCENT_APP_ID TENCENT_REGION
+    export ASR_BACKEND TTS_BACKEND
+    export LLM_BACKEND LLM_BASE_URL LLM_API_KEY LLM_MODEL LLM_MAX_HISTORY
+else
+    echo "警告: $CONF 不存在，使用 mock 后端" >&2
+fi
+
+# 无参数时打印帮助
+if [ $# -eq 0 ]; then
+    "$VOICE_BIN"
+    exit $?
+fi
+
+cmd="$1"
+shift
+
+case "$cmd" in
+    ask)
+        secs="${1:-${VOICE_RECORD_SECS:-5}}"
+        exec "$VOICE_BIN" ask "$secs"
+        ;;
+    chat)
+        exec "$VOICE_BIN" chat
+        ;;
+    *)
+        exec "$VOICE_BIN" "$cmd" "$@"
+        ;;
+esac

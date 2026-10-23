@@ -1,0 +1,27 @@
+#!/bin/sh
+# /etc/voice.conf —— 语音助手配置
+#
+# 权限必须是 600（含密钥）
+#   chmod 600 /etc/voice.conf
+#
+# 这些变量由 /usr/bin/voicectl 读取并 export
+
+# ===== 腾讯云 ASR / TTS（TC3 签名）=====
+TENCENT_SECRET_ID="<your-secret-id>"
+TENCENT_SECRET_KEY="<your-secret-key>"
+TENCENT_APP_ID="<your-app-id>"
+TENCENT_REGION="ap-shanghai"
+
+ASR_BACKEND=tencent
+TTS_BACKEND=tencent
+
+# ===== 大模型（TokenHub，OpenAI 兼容）=====
+LLM_BACKEND=openai
+LLM_BASE_URL="https://tokenhub.tencentmaas.com/v1"
+LLM_API_KEY="<your-api-key>"
+LLM_MODEL="hunyuan-role-latest"
+LLM_MAX_HISTORY=3
+
+# ===== 交互默认参数 =====
+# 每轮录音秒数
+VOICE_RECORD_SECS=5

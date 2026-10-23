@@ -1,0 +1,50 @@
+#!/bin/sh /etc/rc.common
+# voice-init —— 语音助手初始化
+#
+# 1. 确保 WM8960 mixer 已配置（依赖 audio-init，但这里做兜底）
+# 2. 检查 /etc/voice.conf 权限
+#
+# 真正的 mixer 配置在 /etc/init.d/audio-init，本脚本只做语音助手相关检查
+
+START=96
+STOP=10
+
+CONF=/etc/voice.conf
+
+start() {
+    # 声卡存在性检查
+    if [ ! -e /proc/asound/card0/pcm0p ]; then
+        logger -t voice-init "wm8960 声卡不存在，跳过"
+        return 0
+    fi
+
+    # 配置文件权限检查
+    if [ -f "$CONF" ]; then
+        perm=$(ls -l "$CONF" | cut -c1-10)
+        case "$perm" in
+            -rw-------) ;;                    # 600，正确
+            *)
+                logger -t voice-init "警告: $CONF 权限为 $perm，建议 chmod 600"
+                echo "voice-init: 警告: $CONF 权限应为 600（当前 $perm）"
+                ;;
+        esac
+    else
+        logger -t voice-init "$CONF 不存在，语音助手将使用 mock 后端"
+        echo "voice-init: $CONF 不存在（使用 mock 后端）"
+        return 0
+    fi
+
+    # 二进制检查
+    if [ ! -x /usr/bin/voice ]; then
+        logger -t voice-init "/usr/bin/voice 不存在"
+        echo "voice-init: 警告: /usr/bin/voice 不可执行"
+        return 0
+    fi
+
+    logger -t voice-init "语音助手就绪"
+    echo "voice-init: 语音助手就绪"
+}
+
+stop() {
+    return 0
+}
