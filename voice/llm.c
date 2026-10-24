@@ -34,6 +34,9 @@ static char g_hist_asst[HIST_MAX][HIST_TEXT_MAX];
 static int  g_hist_count = 0;
 static int  g_hist_head  = 0;
 
+/* 长期记忆摘要（拼进 system prompt，约 50 token） */
+static char g_profile[512] = "";
+
 /* ================= MOCK ================= */
 struct rule { const char *kw; const char *reply; };
 
@@ -224,11 +227,22 @@ static int openai_chat(const char *user, char *out, size_t outlen)
         return -1;
     }
 
-    n = snprintf(msgs, sizeof(msgs),
-                 "{\"role\":\"system\",\"content\":"
-                 "\"你是一个中文语音助手。直接给出最终回答，不要展示思考过程。"
-                 "回答必须控制在40字以内，不要用markdown、列表或表情符号，"
-                 "因为答案会被直接朗读出来。\"}");
+    /* system prompt + 长期记忆摘要 */
+    if (g_profile[0]) {
+        char esc_prof[1024];
+        json_escape(g_profile, esc_prof, sizeof(esc_prof));
+        n = snprintf(msgs, sizeof(msgs),
+                     "{\"role\":\"system\",\"content\":"
+                     "\"你是一个中文语音助手。直接给出最终回答，不要展示思考过程。"
+                     "回答必须控制在40字以内，不要用markdown、列表或表情符号，"
+                     "因为答案会被直接朗读出来。%s\"}", esc_prof);
+    } else {
+        n = snprintf(msgs, sizeof(msgs),
+                     "{\"role\":\"system\",\"content\":"
+                     "\"你是一个中文语音助手。直接给出最终回答，不要展示思考过程。"
+                     "回答必须控制在40字以内，不要用markdown、列表或表情符号，"
+                     "因为答案会被直接朗读出来。\"}");
+    }
 
     for (i = 0; i < g_hist_count; i++) {
         int idx = (g_hist_head + i) % HIST_MAX;
@@ -313,6 +327,48 @@ int llm_chat(const char *user_text, char *out, size_t outlen)
 }
 
 void llm_deinit(void) { g_init = 0; }
+
+/* ---- 长期记忆注入 ---- */
+void llm_set_profile(const char *summary)
+{
+    if (summary && summary[0])
+        snprintf(g_profile, sizeof(g_profile), "%s", summary);
+    else
+        g_profile[0] = 0;
+
+    if (g_profile[0])
+        fprintf(stderr, "[llm] 已注入用户档案(%zu 字节)\n", strlen(g_profile));
+}
+
+/* ---- 导出最近 N 轮对话（给提炼器用）---- */
+void llm_dump_dialog(char *out, size_t outlen, int max_rounds)
+{
+    size_t used = 0;
+    int i, start;
+
+    if (!out || outlen == 0) return;
+    out[0] = 0;
+    if (g_hist_count == 0) return;
+
+    if (max_rounds <= 0 || max_rounds > g_hist_count)
+        max_rounds = g_hist_count;
+
+    start = g_hist_count - max_rounds;
+
+    for (i = start; i < g_hist_count; i++) {
+        int idx = (g_hist_head + i) % HIST_MAX;
+        int n = snprintf(out + used, outlen - used,
+                         "用户: %s\n助手: %s\n",
+                         g_hist_user[idx], g_hist_asst[idx]);
+        if (n <= 0 || used + (size_t)n >= outlen) break;
+        used += (size_t)n;
+    }
+}
+
+int llm_history_count(void)
+{
+    return g_hist_count;
+}
 
 const char *llm_backend_name(void)
 {

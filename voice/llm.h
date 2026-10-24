@@ -40,4 +40,22 @@ void llm_reset_history(void);
 /* 打印当前配置（不显示 key 全文） */
 void llm_print_config(void);
 
+/*
+ * 注入长期记忆（用户档案摘要）。
+ * 这段文字会拼在 system prompt 里，约 50 token。
+ * 传 NULL 或空串表示清除。
+ */
+void llm_set_profile(const char *summary);
+
+/*
+ * 取出最近 N 轮对话原文，格式：
+ *   用户: xxx
+ *   助手: yyy
+ * 用于提炼长期记忆。out 为空串表示没有历史。
+ */
+void llm_dump_dialog(char *out, size_t outlen, int max_rounds);
+
+/* 当前历史轮数 */
+int llm_history_count(void);
+
 #endif /* LLM_H */

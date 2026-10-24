@@ -2,6 +2,7 @@
  * audio.c —— ALSA 录音/播放实现
  */
 #include "audio.h"
+#include "vad.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -154,6 +155,115 @@ long audio_record_buf(unsigned char *buf, size_t cap,
     snd_pcm_close(pcm);
 
     return (long)(done * frame_bytes);
+}
+
+/* ---------------- ★ VAD 录音 ---------------- */
+/*
+ * 说话就开始，说完（持续静音）就停。
+ *
+ * 关键：WAIT_START 阶段不直接丢数据，而是写入缓冲。
+ * 这样「检测到能量 → 确认在说话」之间那几十毫秒的第一个字不会被吞。
+ * 代价是如果全程没人说话，缓冲区里有几 KB 噪声——反正会返回 0，调用方忽略。
+ */
+long audio_record_vad(unsigned char *buf, size_t cap,
+                      unsigned rate, unsigned ch,
+                      int start_rms, unsigned silence_ms,
+                      unsigned max_secs, unsigned *out_ms)
+{
+    snd_pcm_t *pcm;
+    snd_pcm_uframes_t period = 512;      /* 512 帧 @16kHz = 32ms */
+    size_t frame_bytes = ch * 2;
+    unsigned char *tmp;
+    vad_t vad;
+    unsigned long max_frames, written = 0;
+    int err, state;
+    int saw_speech = 0;
+
+    g_stop = 0;
+    if (out_ms) *out_ms = 0;
+
+    pcm = pcm_open(AUDIO_CARD, SND_PCM_STREAM_CAPTURE, &rate, &ch);
+    if (!pcm)
+        return -1;
+
+    if (vad_init(&vad, rate, start_rms, silence_ms) < 0) {
+        snd_pcm_close(pcm);
+        return -1;
+    }
+    if (max_secs) vad.max_speech_ms = max_secs * 1000;
+
+    max_frames = max_secs ? (unsigned long)rate * max_secs : (unsigned long)rate * 15;
+    if (max_frames * frame_bytes > cap)
+        max_frames = cap / frame_bytes;
+
+    tmp = malloc(period * frame_bytes);
+    if (!tmp) { snd_pcm_close(pcm); return -1; }
+
+    snd_pcm_prepare(pcm);
+
+    while (!g_stop) {
+        snd_pcm_sframes_t got;
+
+        got = snd_pcm_readi(pcm, tmp, period);
+        if (got == -EPIPE) { snd_pcm_prepare(pcm); continue; }
+        if (got == -EAGAIN) continue;
+        if (got < 0) {
+            fprintf(stderr, "[audio] readi: %s\n", snd_strerror(got));
+            break;
+        }
+        if (got == 0) continue;
+
+        /* VAD 判定 */
+        state = vad_process(&vad, (const short *)tmp, (size_t)got);
+
+        if (state == VAD_SPEECH) saw_speech = 1;
+
+        /* WAIT_START 也写入——保住第一个字 */
+        if (state != VAD_DONE) {
+            if (written + (unsigned long)got > max_frames) {
+                /* 触顶 */
+                break;
+            }
+            memcpy(buf + written * frame_bytes, tmp, (size_t)got * frame_bytes);
+            written += (unsigned long)got;
+        } else {
+            /* DONE：如果检测到过语音，停止；否则（等太久）也停止 */
+            break;
+        }
+    }
+
+    free(tmp);
+    snd_pcm_drop(pcm);
+    snd_pcm_close(pcm);
+
+    vad_dump_stats(&vad);
+
+    if (!saw_speech) {
+        /* 全程没检测到语音 */
+        if (out_ms) *out_ms = 0;
+        return 0;
+    }
+
+    /*
+     * 去掉尾部多余的静音。
+     * vad.silence_frames 是「连续静音帧数」，每帧 period 个采样点。
+     * 保留 silence_ms 的量（听起来自然），其余裁掉。
+     */
+    {
+        unsigned long total_silence_frames =
+            (unsigned long)vad.silence_frames * period;
+        unsigned long keep_frames = (unsigned long)rate * silence_ms / 1000;
+        if (total_silence_frames > keep_frames) {
+            unsigned long drop = total_silence_frames - keep_frames;
+            if (drop < written)
+                written -= drop;
+        }
+    }
+
+    if (out_ms)
+        *out_ms = (unsigned)((written * 1000) / rate);
+
+    return (long)(written * frame_bytes);
 }
 
 /* ---------------- 录音到文件 ---------------- */

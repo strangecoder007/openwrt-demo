@@ -22,6 +22,30 @@ LLM_API_KEY="<your-api-key>"
 LLM_MODEL="hunyuan-role-latest"
 LLM_MAX_HISTORY=3
 
+
+# ===== 唤醒触发（voice-trigger 服务用）=====
+# 留空 = 不监听该触发源
+# ASRPRO 串口接法：模块 TX -> 板子 RXD(ttymxc1)，模块 RX -> 板子 TXD，GND 共地
+VOICE_TRIGGER_UART=""
+VOICE_TRIGGER_BAUD=115200
+VOICE_TRIGGER_KEYWORD="WAKE"
+
+# GPIO 触发（sysfs 编号）；和 UART 可以同时启用
+VOICE_TRIGGER_GPIO=""
+VOICE_TRIGGER_GPIO_ACTIVE=1
+
+VOICE_TRIGGER_DEBOUNCE=3000
+VOICE_TRIGGER_ASK_SECS=15
+VOICE_TRIGGER_VERBOSE=0
+
+# ===== 录音方式 =====
+# 1 = VAD（说话才录，说完即停，推荐）
+# 0 = 固定时长（由 VOICE_RECORD_SECS 决定）
+VOICE_VAD=1
+VOICE_VAD_SILENCE=800
+# 0 = 自适应底噪（推荐）；>0 = 固定起始阈值
+VOICE_VAD_RMS=0
+
 # ===== 交互默认参数 =====
 # 每轮录音秒数
 VOICE_RECORD_SECS=5

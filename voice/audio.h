@@ -24,6 +24,24 @@ long audio_record(const char *path, unsigned rate, unsigned ch, unsigned secs);
 long audio_record_buf(unsigned char *buf, size_t cap,
                       unsigned rate, unsigned ch, unsigned secs);
 
+/*
+ * ★ VAD 录音：说话就开始，说完（持续静音）就停，不用固定时长。
+ *
+ *   buf/cap       输出缓冲
+ *   rate/ch       采样率 / 声道
+ *   start_rms     起始能量阈值（安静环境约 100~300）
+ *   silence_ms    连续静音多久算说完（建议 800）
+ *   max_secs      最长录音兜底（防止一直说不停）
+ *   out_ms        [输出] 实际录到的音频时长（毫秒）
+ *
+ * 返回字节数（已包含前置缓冲，即第一个字不会被吞）。
+ * 如果一直没检测到语音（超过 lead_in），返回 0。
+ */
+long audio_record_vad(unsigned char *buf, size_t cap,
+                      unsigned rate, unsigned ch,
+                      int start_rms, unsigned silence_ms,
+                      unsigned max_secs, unsigned *out_ms);
+
 /* 播放 WAV 文件 */
 int audio_play(const char *path);
 
