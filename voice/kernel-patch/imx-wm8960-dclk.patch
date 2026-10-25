@@ -1,0 +1,72 @@
+--- sound/soc/fsl/imx-wm8960.c.bak-spkfix-1792914470	2026-10-25 15:47:50.067685052 +0800
++++ sound/soc/fsl/imx-wm8960.c	2026-10-25 15:56:05.748213540 +0800
+@@ -247,18 +247,63 @@
+ 
+ 	data->clk_frequency = clk_get_rate(data->codec_clk);
+ 
+-	/* Set codec pll */
+-	if (params_width(params) == 24)
+-		pll_out = sample_rate * 768;
+-	else
+-		pll_out = sample_rate * 512;
++	/*
++	 * Set codec PLL.
++	 *
++	 * WM8960 Class D 功放需要 700~800kHz 的开关时钟（数据手册
++	 * "Class D Speaker Outputs" 一节），该时钟 = SYSCLK / DCLKDIV。
++	 *
++	 * DCLKDIV 最大分频是 16（编码 111），所以要得到 768kHz 的 DCLK，
++	 * SYSCLK 必须是 768kHz * 16 = 12.288MHz。
++	 *
++	 * 12.288MHz 能被本板支持的全部采样率整数除尽：
++	 *   12288000 / 8000  = 1536
++	 *   12288000 / 16000 =  768
++	 *   12288000 / 32000 =  384
++	 *   12288000 / 48000 =  256
++	 *
++	 * 原来的 sample_rate * 512 在 48kHz 时得到 24.576MHz，
++	 * 除以 16 仍有 1.536MHz，超出规范上限一倍 —— 功放不出声。
++	 */
++	(void)params_width;
++	pll_out = 12288000;
++
++	/* SYSCLK 必须是采样率的整数倍，否则 DAC 时钟不成立 */
++	if (pll_out % sample_rate) {
++		dev_err(dev, "SYSCLK %u not integer multiple of rate %u\n",
++			pll_out, sample_rate);
++		return -EINVAL;
++	}
+ 
+ 	ret = snd_soc_dai_set_pll(codec_dai, WM8960_SYSCLK_AUTO, 0, data->clk_frequency, pll_out);
+ 	if (ret)
+ 		return ret;
+ 	ret = snd_soc_dai_set_sysclk(codec_dai, WM8960_SYSCLK_AUTO, pll_out, 0);
++	if (ret)
++		return ret;
++
++	/*
++	 * 配置 DCLKDIV = 111 (SYSCLK / 16) → 12.288MHz / 16 = 768kHz，
++	 * 正落在数据手册要求的 700~800kHz 窗口中间。
++	 *
++	 * 注意：不能用 snd_soc_dai_set_clkdiv()，它内部是
++	 *   reg = read(CLOCK2) & 0x03f;  write(CLOCK2, reg | div)
++	 * bit[8:6] 的旧值会被 OR 进来，导致写不进正确值。必须整字段覆盖。
++	 */
++	{
++		struct snd_soc_codec *codec = rtd->codec;
++		u16 clk2 = snd_soc_read(codec, WM8960_CLOCK2);
++
++		clk2 &= ~(0x7 << 6);            /* 清 DCLKDIV[2:0] */
++		clk2 |= (0x7 << 6);             /* DIV_16 */
++		snd_soc_write(codec, WM8960_CLOCK2, clk2);
++
++		dev_info(dev,
++			 "wm8960 class D clock: SYSCLK=%u Hz / 16 = %u Hz\n",
++			 pll_out, pll_out / 16);
++	}
+ 
+-	return ret;
++	return 0;
+ }
+ 
+ static int imx_hifi_hw_free(struct snd_pcm_substream *substream)
