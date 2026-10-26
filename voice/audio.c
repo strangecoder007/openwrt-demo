@@ -190,6 +190,13 @@ long audio_record_vad(unsigned char *buf, size_t cap,
         snd_pcm_close(pcm);
         return -1;
     }
+    /*
+     * ★ 帧长必须按实际 period 算：下面每次 readi 拿的是 period 个采样点
+     *   （512 @16k = 32ms），而 vad 默认 frame_ms=20。不改的话所有毫秒
+     *   阈值都按 20ms/帧 记账，实际时间只有标称的 62.5%，校准窗口、
+     *   静音判定、lead_in 全部偏短。
+     */
+    vad.frame_ms = (unsigned)((unsigned long)period * 1000 / rate);
     if (max_secs) vad.max_speech_ms = max_secs * 1000;
 
     max_frames = max_secs ? (unsigned long)rate * max_secs : (unsigned long)rate * 15;

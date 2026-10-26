@@ -473,6 +473,61 @@ voicectl e2e           # 全链路，不用麦克风
 | VAD 固定阈值失效 | 环境底噪 RMS 350~410 高于阈值 200 → 一启动就误判"在说话"；改自适应 |
 | poll 被 SA_RESTART 吞信号 | `signal()` 隐式带 `SA_RESTART`，procd 停服务要等 30 秒；用 `sigaction` + `sa_flags=0` |
 | 喇叭只接右声道，单声道播放全哑 | 板载喇叭接 SPK_R，而 SAI 在 `channels=1` 时每个 I2S 帧只填左 slot |
+| 多轮对话第二轮起「我没听清」 | 三个 bug 叠加：`voicectl` 没 export `VOICE_*`、VAD 校准被 ADC 启动瞬态污染、`frame_ms` 与实际帧长不符 |
+
+### 多轮对话第二轮起「我没听清」（2026-10-26）
+
+现象：`voicectl chat` 第一轮正常，之后每轮都回「我没听清，再说一遍好吗？」。
+三个独立缺陷叠在一起：
+
+**① `voicectl` 只 export 了 3 组变量**
+
+`. /etc/voice.conf` 只把变量设进当前 shell，真正干活的是 `exec` 出去的另一个进程。
+原来只 export 了 `TENCENT_*`、`ASR_BACKEND/TTS_BACKEND`、`LLM_*`，
+**`VOICE_VAD` / `VOICE_VAD_SILENCE` / `VOICE_VAD_RMS` / `VOICE_RECORD_SECS` /
+`VOICE_TRIGGER_*` 一个都没传** —— 配置里写着 `VOICE_VAD=1`，`voice` 里
+`getenv("VOICE_VAD")` 拿到 NULL，悄悄退回固定时长录音。配置文件里所有 `VOICE_*`
+项本来全是摆设。
+
+`voice-trigger.init` 是同一个病且更严重：source 了配置却一个都没 export，
+procd 拉起的 `voice trigger` 连腾讯云凭据都拿不到，会静默走 mock 后端。
+
+**② VAD 的噪声校准被 ADC 启动瞬态污染**
+
+WM8960 的 ADC 每次 enable 都会吐一段直流跳变，**峰值 RMS 两万+**，就在录音前 ~200ms。
+VAD 的前 300ms 自适应校准（取平均 RMS）正好吃进这段：
+
+```
+[vad] 校准完成: 底噪=2780  起始阈值=8000  结束阈值=4000   ← 坏
+[vad] 校准完成: 底噪=460   起始阈值=1380  结束阈值=690    ← 好
+```
+
+`start_rms = 3 × 底噪` 撞上 `if (start_rms > 8000) start_rms = 8000` 的上限，
+而正常近场说话 RMS 只有 1000~4000 —— **永远触发不了 SPEECH**，
+`audio_record_vad` 返回 0，上层打印「没有检测到语音」。
+
+修法：自适应模式先 `skip_ms = 300` 整段丢弃启动瞬态，校准窗口的底噪改用
+**中位数**而不是平均值。
+
+**③ `frame_ms` 和实际帧长对不上**
+
+`audio_record_vad` 每次 `snd_pcm_readi` 拿 `period = 512` 个采样点
+（16kHz = **32ms**），但 `vad_init` 里 `frame_ms` 硬编码 20。
+所有按帧计数的毫秒阈值只按 62.5% 折算：校准 300ms 实际 187ms、
+静音判定 800ms 实际 500ms、lead_in 5s 实际 3.1s。
+
+修法：`vad_init` 之后补 `vad.frame_ms = period * 1000 / rate;`
+
+修后实测（同一台板子）：
+
+| 场景 | 修前阈值 | 修后阈值 |
+| --- | --- | --- |
+| 安静 | 8000 / 4000（底噪 2780） | **1380 / 690**（底噪 460） |
+| 播放后立刻 | 8000 / 4000（底噪 3060） | **1746 / 873**（底噪 582） |
+| 连续第三次 | 2367 / 1183（底噪 789） | **1680 / 840**（底噪 560） |
+
+排查手法：`voicectl ask N` 的 stderr 会打 `[vad] 校准完成: 底噪=? 起始阈值=?`。
+**起始阈值接近 8000 就是被瞬态污染了**，正常应在 1200~2000。
 
 ### 喇叭只接右声道 → 单声道播放必然全哑（2026-10-26）
 

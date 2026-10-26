@@ -34,6 +34,9 @@ typedef struct {
     int      noise_samples;    /* 已采样帧数 */
     long long noise_sum;       /* 底噪累计 */
     unsigned calibrate_ms;     /* 校准时长（这段只测不判） */
+    int      noise_buf[32];    /* ★ 校准期间逐帧 RMS，用于取中位数（抗尖峰） */
+    unsigned noise_n;          /* ★ 已存入的帧数 */
+    unsigned skip_ms;          /* ★ 启动时丢弃的毫秒数（ADC 上电瞬态） */
 
     /* 运行状态 */
     int      state;            /* 0=WAIT_START 1=SPEECH 2=DONE */

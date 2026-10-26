@@ -66,8 +66,9 @@ int vad_init(vad_t *v, unsigned sr, int start_rms, unsigned silence_ms)
         v->calibrate_ms = 0;
         v->baseline_rms = 0;
     } else {
-        /* ★ 自适应模式：前 300ms 校准 */
+        /* ★ 自适应模式：先丢 300ms 启动瞬态，再校准 300ms */
         v->calibrate_ms = 300;
+        v->skip_ms      = 300;
         v->baseline_rms = 0;
         v->start_rms    = 0;    /* 校准完才填 */
         v->end_rms      = 0;
@@ -89,14 +90,43 @@ int vad_process(vad_t *v, const short *pcm, size_t frames)
     if (rms > v->peak_rms) v->peak_rms = rms;
     v->sum_rms += rms;
 
+    /* ---------- 阶段 -1：丢弃启动瞬态 ---------- */
+    /*
+     * ★ WM8960 的 ADC 每次 enable 都会吐一段直流跳变，实测峰值 RMS 两万+
+     *   （接近满量程一半）。这段要是进了校准窗口，底噪会被算成 2700~3000，
+     *   start_rms 被上限压到 8000，之后正常说话（RMS 1000~4000）永远触发不了，
+     *   表现为「第一轮正常，之后一直说没检测到语音」。
+     */
+    if (v->skip_ms > 0) {
+        v->skip_ms = (v->skip_ms > v->frame_ms) ? v->skip_ms - v->frame_ms : 0;
+        return v->state;
+    }
+
     /* ---------- 阶段 0：噪声校准 ---------- */
     if (v->calibrate_ms > 0) {
+        unsigned cap = (unsigned)(sizeof(v->noise_buf) / sizeof(v->noise_buf[0]));
+
         v->noise_sum += rms;
         v->noise_samples++;
+        if (v->noise_n < cap)
+            v->noise_buf[v->noise_n++] = rms;
         v->wait_frames++;
 
         if (v->wait_frames * v->frame_ms >= v->calibrate_ms) {
-            int base = (int)(v->noise_sum / v->noise_samples);
+            unsigned k;
+            int base;
+
+            /* 取中位数而不是平均值：偶发尖峰不会把底噪抬起来 */
+            for (k = 1; k < v->noise_n; k++) {
+                int key = v->noise_buf[k];
+                int j = (int)k - 1;
+                while (j >= 0 && v->noise_buf[j] > key) {
+                    v->noise_buf[j + 1] = v->noise_buf[j];
+                    j--;
+                }
+                v->noise_buf[j + 1] = key;
+            }
+            base = v->noise_n ? v->noise_buf[v->noise_n / 2] : 300;
             if (base < 20) base = 20;      /* 防止除零/过低 */
 
             v->baseline_rms = base;

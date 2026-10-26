@@ -31,6 +31,15 @@ start_service() {
     # 读配置（voice.conf 是 shell 片段，直接 source）
     [ -f "$CONF" ] && . "$CONF"
 
+    # ★ 必须 export。procd 拉起的 voice 进程只认环境变量；
+    #   source 只是给本脚本设了变量，不 export 的话：
+    #     - 腾讯云凭据 / ASR/TTS/LLM 配置全部丢失 → 静默走 mock 后端
+    #     - VOICE_VAD 等交互参数也丢失 → 退回固定时长录音
+    export TENCENT_SECRET_ID TENCENT_SECRET_KEY TENCENT_APP_ID TENCENT_REGION
+    export ASR_BACKEND TTS_BACKEND
+    export LLM_BACKEND LLM_BASE_URL LLM_API_KEY LLM_MODEL LLM_MAX_HISTORY
+    export VOICE_VAD VOICE_VAD_SILENCE VOICE_VAD_RMS VOICE_RECORD_SECS
+
     uart="${VOICE_TRIGGER_UART:-}"
     baud="${VOICE_TRIGGER_BAUD:-115200}"
     kw="${VOICE_TRIGGER_KEYWORD:-WAKE}"

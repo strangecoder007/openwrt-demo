@@ -32,6 +32,13 @@ if [ -f "$CONF" ]; then
     export TENCENT_SECRET_ID TENCENT_SECRET_KEY TENCENT_APP_ID TENCENT_REGION
     export ASR_BACKEND TTS_BACKEND
     export LLM_BACKEND LLM_BASE_URL LLM_API_KEY LLM_MODEL LLM_MAX_HISTORY
+    # ★ 交互/触发相关也必须 export：source 只是设了当前 shell 的变量，
+    #   不 export 的话 exec 出去的 voice 进程根本 getenv 不到，
+    #   表现为「配置写了 VOICE_VAD=1 却还是走固定时长录音」。
+    export VOICE_VAD VOICE_VAD_SILENCE VOICE_VAD_RMS VOICE_RECORD_SECS
+    export VOICE_TRIGGER_UART VOICE_TRIGGER_BAUD VOICE_TRIGGER_KEYWORD
+    export VOICE_TRIGGER_GPIO VOICE_TRIGGER_GPIO_ACTIVE VOICE_TRIGGER_DEBOUNCE
+    export VOICE_TRIGGER_ASK_SECS VOICE_TRIGGER_VERBOSE
 else
     echo "警告: $CONF 不存在，使用 mock 后端" >&2
 fi
