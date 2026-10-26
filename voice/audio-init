@@ -1,0 +1,71 @@
+#!/bin/sh /etc/rc.common
+#
+# audio-init —— WM8960 声卡初始化
+#
+# START=95，必须在 voice-init(S96) 和 voice-trigger(S97) 之前。
+#
+# 配置依据：正点原子《I.MX6U 嵌入式Linux驱动开发指南 V1.8》第 65 章
+#   - p1594-1595 的 mic_in_config.sh（播放 + 录音完整配置）
+#   - p1596 说明 ALPHA 板 MIC 只接左声道，且实际走 RINPUT2
+
+START=95
+STOP=10
+
+A=/usr/bin/amixer
+C=0
+
+mixer() { $A -c $C "$@" 2>/dev/null; }
+
+start() {
+    # 声卡不存在就跳过
+    [ -e /proc/asound/card${C}/pcm0p ] || {
+        echo "audio-init: 声卡不存在，跳过"
+        return 0
+    }
+
+    # ---- 播放通路 ----
+    mixer sset 'Playback' 255
+    mixer sset 'PCM Playback' on
+    mixer sset 'Right Output Mixer PCM' on
+    mixer sset 'Left Output Mixer PCM' on
+
+    # ---- 耳机 ----
+    mixer sset 'Headphone' 125
+    mixer sset 'Headphone Playback ZC' on
+
+    # ---- 喇叭（Speaker DC/AC 必须非 0，否则 D 类功放无输出）----
+    mixer sset 'Speaker' 125
+    mixer sset 'Speaker Playback ZC' on
+    mixer sset 'Speaker AC' 4
+    mixer sset 'Speaker DC' 4
+
+    # ---- 录音 ----
+    # 文档 p1594：Capture Volume 90,90；ADC PCM 200
+    mixer cset name='Capture Volume' 90,90
+    mixer sset 'ADC PCM' 200
+    mixer sset 'ADC High Pass Filter' on
+    mixer sset 'ALC Function' Off
+
+    # 左声道输入全关（麦克风不在 LINPUT*）
+    mixer sset 'Left Input Mixer Boost' off
+    mixer sset 'Left Boost Mixer LINPUT1' off
+    mixer sset 'Left Input Boost Mixer LINPUT1' 0
+    mixer sset 'Left Boost Mixer LINPUT2' off
+    mixer sset 'Left Input Boost Mixer LINPUT2' 0
+    mixer sset 'Left Boost Mixer LINPUT3' off
+    mixer sset 'Left Input Boost Mixer LINPUT3' 0
+
+    # 右声道：RINPUT2（板载麦克风），boost 7 = 100%
+    mixer sset 'Right Input Mixer Boost' on
+    mixer sset 'Right Boost Mixer RINPUT1' off
+    mixer sset 'Right Boost Mixer RINPUT2' on
+    mixer sset 'Right Input Boost Mixer RINPUT2' 7
+    mixer sset 'Right Boost Mixer RINPUT3' off
+    mixer sset 'Right Input Boost Mixer RINPUT3' 0
+
+    echo "audio-init: WM8960 配置完成"
+}
+
+stop() {
+    return 0
+}

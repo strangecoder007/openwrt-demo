@@ -400,6 +400,7 @@ int trigger_run(const trigger_cfg_t *cfg)
                 for (k = 0; k < n; k++) {
                     char c = tmp[k];
                     if (c == '\n' || c == '\r') {
+                        /* 换行：处理完整一行 */
                         if (st.linelen > 0) {
                             st.linebuf[st.linelen] = 0;
                             handle_line(&st, st.linebuf);
@@ -407,6 +408,21 @@ int trigger_run(const trigger_cfg_t *cfg)
                         }
                     } else if (st.linelen < LINE_BUF_SIZE - 1) {
                         st.linebuf[st.linelen++] = c;
+                        st.linebuf[st.linelen] = 0;
+
+                        /*
+                         * ★ 不依赖换行：缓冲区里一出现关键字就立即处理。
+                         * ASRPRO 的固件可能发 "WAKE\n"（字面反斜杠 n）
+                         * 也可能根本不发换行，所以不能只等 '\n'。
+                         */
+                        if (st.cfg.uart_keyword && st.cfg.uart_keyword[0] &&
+                            strstr(st.linebuf, st.cfg.uart_keyword)) {
+                            handle_line(&st, st.linebuf);
+                            if (st.state == ST_LISTENING)
+                                st.linelen = 0;     /* 已触发，清缓冲 */
+                            else
+                                st.linelen = 0;     /* 未触发（防抖/忙），也清 */
+                        }
                     } else {
                         /* 超长，丢弃整行 */
                         st.linelen = 0;

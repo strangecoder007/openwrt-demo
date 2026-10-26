@@ -472,6 +472,54 @@ voicectl e2e           # 全链路，不用麦克风
 | 推理模型 content 为空 | `max_tokens` 被 `reasoning_content` 吃光，`finish_reason: "length"` |
 | VAD 固定阈值失效 | 环境底噪 RMS 350~410 高于阈值 200 → 一启动就误判"在说话"；改自适应 |
 | poll 被 SA_RESTART 吞信号 | `signal()` 隐式带 `SA_RESTART`，procd 停服务要等 30 秒；用 `sigaction` + `sa_flags=0` |
+| 喇叭只接右声道，单声道播放全哑 | 板载喇叭接 SPK_R，而 SAI 在 `channels=1` 时每个 I2S 帧只填左 slot |
+
+### 喇叭只接右声道 → 单声道播放必然全哑（2026-10-26）
+
+这是最隐蔽的一个：**mixer 全开、`hw_ptr` 正常推进、返回码 0、DAPM 也起来了，但喇叭一声没有。**
+
+硬件上，ALPHA 底板那颗喇叭只接在 **SPK_R（右声道）**，SPK_L 是空着的。
+软件上，`main.c` 的播放调用是硬编码单声道的：
+
+```c
+audio_play_pcm(g_tts, tts_bytes, tts_rate, 1)   /* ← ch = 1 */
+```
+
+`hw:0,0` 的 hw_params 声明 `CHANNELS: [1 2]`，**真的接受 1ch**。于是 i.MX6ULL 的 SAI
+以单声道运行，每个 I2S 帧只填 slot0（左），右声道 slot 一个采样都没有。
+
+关键证据：
+
+| 检查项 | 结果 |
+| --- | --- |
+| 播放 1ch 时 `pcm0p/sub0/hw_params` | `channels: 1`，确实按单声道打开 |
+| SAI slot 掩码寄存器 | mono `0xfffffffe`（1 slot） / stereo `0xfffffffc`（2 slot） |
+| `plughw:0,0` 能否救 | 不能。hw 本身支持 1ch，plug 层判定无需转换直接直通 |
+| 麦克风回录同一段 1kHz | 旧路径幅度 **3.0** → 补丁后 **10035**（3300 倍） |
+| 实播 TTS 回录 | peak 856 / rms 121（全底噪） → peak 32768 / rms 1404（两轮对话清晰） |
+
+修复在 `audio_play_pcm()` 入口：`ch == 1` 时先展开成 `L = R` 的立体声再打开 PCM；
+顺带把 `frame_bytes` 从 `pcm_open()` 之前挪到协商之后（`pcm_open` 可能改写 `ch`，
+原来按入参算会错位）。
+
+**复核手法**（不需要人耳朵）：板子 `card0` 的 playback/capture 共用同一个 SAI 不能同时开，
+但板上有 USB 摄像头 = `card1`，拿它当耳朵：
+
+```sh
+arecord -D hw:1,0 -f S16_LE -r 48000 -c 1 -d 30 /tmp/rec.wav &
+voicectl e2e
+wait
+# 拉回 PC 算 1kHz 幅度 / 看 rms
+```
+
+**两个连带坑**：
+
+1. `/sys/kernel/debug/regmap/0-001a/registers` 直接 `cat` 是空的（wm8960 寄存器被标成不可读），
+   要 `echo 1 > cache_only` 才出值；**用完必须 `echo 0`**，否则寄存器只进 cache 不落硬件，
+   下次会看到「配置全对但没声」的假象。想看声道配置直接读 `202c000.sai` 的 regmap 更快。
+2. 混用 16k 录音 + 48k 播放会把 SAI 时钟状态搞坏（dmesg: `unmatched rate symmetry: 48000 - 16000`），
+   之后所有 `aplay` 都 `pcm_write: I/O error`，软复位救不回来，**重启板子即恢复**。
+   voice 全链路都是 16k，正常不会触发。
 
 完整的根因分析见 Obsidian 笔记库 `D:\Notes`。
 

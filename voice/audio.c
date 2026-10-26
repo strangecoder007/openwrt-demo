@@ -328,15 +328,48 @@ long audio_record(const char *path, unsigned rate, unsigned ch, unsigned secs)
 int audio_play_pcm(const void *data, size_t bytes, unsigned rate, unsigned ch)
 {
     snd_pcm_t *pcm;
-    size_t frame_bytes = ch * 2;
+    size_t frame_bytes;
     const unsigned char *p = data;
+    unsigned char *upsample = NULL;
     snd_pcm_sframes_t n;
 
     g_stop = 0;
 
+    /*
+     * ★ 单声道必须先展开成双声道再送 ALSA。
+     *
+     * 板载喇叭只接在右声道（SPK_R）。i.MX6ULL 的 SAI 在 channels=1 时
+     * 每个 I2S 帧只填 slot0（左），右声道 slot 没有任何数据 —— 结果就是
+     * /proc/asound/.../status 一切正常、hw_ptr 正常推进，但喇叭完全没声。
+     * 用 plughw 也救不回来：hw 参数本身声明支持 1ch（CHANNELS [1 2]），
+     * plug 层判定「无需转换」直接直通，SAI 仍然只发一个 slot。
+     * 实测证据：SAI 的 slot 掩码寄存器 mono=0xfffffffe / stereo=0xfffffffc。
+     */
+    if (ch == 1) {
+        size_t frames = bytes / 2, i;
+        const short *src = (const short *)data;
+        short *dst = malloc(frames * 4);
+
+        if (!dst)
+            return -1;
+        for (i = 0; i < frames; i++) {
+            dst[i * 2]     = src[i];
+            dst[i * 2 + 1] = src[i];
+        }
+        upsample = (unsigned char *)dst;
+        p = upsample;
+        bytes = frames * 4;
+        ch = 2;
+    }
+
     pcm = pcm_open(AUDIO_CARD, SND_PCM_STREAM_PLAYBACK, &rate, &ch);
-    if (!pcm)
+    if (!pcm) {
+        free(upsample);
         return -1;
+    }
+
+    /* 以 pcm_open 实际协商出来的声道数为准（它可能改写 ch） */
+    frame_bytes = ch * 2;
 
     snd_pcm_prepare(pcm);
 
@@ -347,6 +380,7 @@ int audio_play_pcm(const void *data, size_t bytes, unsigned rate, unsigned ch)
         if (n < 0) {
             fprintf(stderr, "[audio] writei: %s\n", snd_strerror(n));
             snd_pcm_close(pcm);
+            free(upsample);
             return -1;
         }
         p += n * frame_bytes;
@@ -355,6 +389,7 @@ int audio_play_pcm(const void *data, size_t bytes, unsigned rate, unsigned ch)
 
     snd_pcm_drain(pcm);
     snd_pcm_close(pcm);
+    free(upsample);
     return 0;
 }
 
